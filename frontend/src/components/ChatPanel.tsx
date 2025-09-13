@@ -3,6 +3,8 @@ import { useMemo, useRef, useState } from 'react'
 import { useEditor } from '../store/editor'
 import type { GeometryKind, SceneObject } from '../types'
 
+const SERVER_URL = (import.meta as any).env?.VITE_SERVER_URL ?? 'http://localhost:8787'
+
 const Panel = styled.div`
   position: absolute;
   top: 56px;
@@ -23,6 +25,48 @@ const Header = styled.div`
   font-weight: 600;
   opacity: 0.9;
   border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`
+
+const Toggle = styled.button`
+  background: #12141a;
+  color: #e6e9ef;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+`
+
+const History = styled.div`
+  max-height: 120px;
+  overflow: auto;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`
+
+const HistoryItem = styled.div`
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(30,34,44,0.7);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 6px 8px;
+`
+
+const SmallBtn = styled.button`
+  background: #0f1116;
+  color: #e6e9ef;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12px;
 `
 
 const Messages = styled.div`
@@ -100,6 +144,9 @@ export function ChatPanel() {
     role: 'system',
     text: 'Try: "add box", "move x 1 y 0 z -0.5", "rotate y 45", "scale 1.5", "color red", "delete", "duplicate", "select Sphere", "union A B", "undo"',
   }])
+  const [showHistory, setShowHistory] = useState(true)
+  const [usingLLM, setUsingLLM] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
 
   const objects = useEditor(s => s.objects)
   const selectedId = useEditor(s => s.selectedId)
@@ -116,6 +163,10 @@ export function ChatPanel() {
   const redo = useEditor(s => s.redo)
   const toggleSnap = useEditor(s => s.toggleSnap)
   const setSnap = useEditor(s => s.setSnap)
+  const addCheckpoint = useEditor(s => s.addCheckpoint)
+  const checkpoints = useEditor(s => s.checkpoints)
+  const restoreCheckpoint = useEditor(s => s.restoreCheckpoint)
+  const deleteCheckpoint = useEditor(s => s.deleteCheckpoint)
 
   const selected = useMemo(() => objects.find(o => o.id === selectedId) ?? null, [objects, selectedId])
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -126,6 +177,97 @@ export function ChatPanel() {
       const el = scrollRef.current
       if (el) el.scrollTop = el.scrollHeight
     })
+  }
+
+  async function callLLM(userText: string) {
+    try {
+      setIsLoading(true)
+      const sceneSummary = objects.map(o => `${o.name} [${o.id}] kind=${o.geometry} pos=(${o.position.x.toFixed(2)},${o.position.y.toFixed(2)},${o.position.z.toFixed(2)})`).join('; ')
+      const r = await fetch(`${SERVER_URL}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: userText, sceneSummary })
+      })
+      const data = await r.json()
+      // OpenAI-compatible: choices[0].message
+      const msg = data?.choices?.[0]?.message
+      if (!msg) return { executed: false, reply: 'No response' }
+
+      // If tool call present
+      const tool = msg?.tool_calls?.[0]
+      if (tool?.function?.name) {
+        const name = tool.function.name as string
+        let args: any = {}
+        try { args = tool.function.arguments ? JSON.parse(tool.function.arguments) : {} } catch {}
+
+        // map tools to store actions
+        if (name === 'addObject') {
+          addObject(args.kind as GeometryKind, args.params)
+          return { executed: true, reply: `Added ${args.kind}` }
+        }
+        if (name === 'selectObject') {
+          const t = String(args.target || '')
+          const found = objects.find(o => o.id === t || o.name === t)
+          if (found) { select(found.id); return { executed: true, reply: `Selected ${found.name}` } }
+          return { executed: false, reply: `Object not found: ${t}` }
+        }
+        if (name === 'updateTransform') {
+          const id = args.id || selectedId
+          if (!id) return { executed: false, reply: 'No target for transform' }
+          const obj = objects.find(o => o.id === id)
+          if (!obj) return { executed: false, reply: 'Target not found' }
+          const isDelta = !!args.isDelta
+          const position = args.position ? {
+            x: isDelta ? obj.position.x + (args.position.x ?? 0) : (args.position.x ?? obj.position.x),
+            y: isDelta ? obj.position.y + (args.position.y ?? 0) : (args.position.y ?? obj.position.y),
+            z: isDelta ? obj.position.z + (args.position.z ?? 0) : (args.position.z ?? obj.position.z),
+          } : undefined
+          const rotation = args.rotation ? {
+            x: isDelta ? obj.rotation.x + (args.rotation.x ?? 0) : (args.rotation.x ?? obj.rotation.x),
+            y: isDelta ? obj.rotation.y + (args.rotation.y ?? 0) : (args.rotation.y ?? obj.rotation.y),
+            z: isDelta ? obj.rotation.z + (args.rotation.z ?? 0) : (args.rotation.z ?? obj.rotation.z),
+          } : undefined
+          const scale = args.scale ? {
+            x: isDelta ? obj.scale.x * (args.scale.x ?? 1) : (args.scale.x ?? obj.scale.x),
+            y: isDelta ? obj.scale.y * (args.scale.y ?? 1) : (args.scale.y ?? obj.scale.y),
+            z: isDelta ? obj.scale.z * (args.scale.z ?? 1) : (args.scale.z ?? obj.scale.z),
+          } : undefined
+          updateTransform(id, { position, rotation, scale })
+          return { executed: true, reply: 'Transform updated' }
+        }
+        if (name === 'updateMaterial') {
+          const id = args.id || selectedId
+          if (!id) return { executed: false, reply: 'No target for material' }
+          updateMaterial(id, { color: args.color, metalness: args.metalness, roughness: args.roughness, opacity: args.opacity, transparent: args.transparent })
+          return { executed: true, reply: 'Material updated' }
+        }
+        if (name === 'updateGeometry') {
+          const id = args.id || selectedId
+          if (!id) return { executed: false, reply: 'No target for geometry' }
+          updateGeometry(id, args.kind as GeometryKind, args.params)
+          return { executed: true, reply: `Geometry set to ${args.kind}` }
+        }
+        if (name === 'duplicateSelected') { duplicateSelected(); return { executed: true, reply: 'Duplicated' } }
+        if (name === 'deleteSelected') { deleteSelected(); return { executed: true, reply: 'Deleted' } }
+        if (name === 'booleanOp') { booleanOp(args.op, args.a, args.b); return { executed: true, reply: `Boolean ${args.op}` } }
+        if (name === 'undo') { undo(); return { executed: true, reply: 'Undid last action' } }
+        if (name === 'redo') { redo(); return { executed: true, reply: 'Redid last action' } }
+        if (name === 'toggleSnap') { toggleSnap(!!args.enabled); return { executed: true, reply: `Snapping ${args.enabled ? 'enabled' : 'disabled'}` } }
+        if (name === 'setSnap') { setSnap({ translateSnap: args.translateSnap, rotateSnap: args.rotateSnap, scaleSnap: args.scaleSnap }); return { executed: true, reply: 'Snap updated' } }
+        if (name === 'setMode') { setMode(args.mode); return { executed: true, reply: `Mode: ${args.mode}` } }
+      }
+
+      const text = msg?.content ?? 'Ok'
+      return { executed: false, reply: text }
+    } catch (e) {
+      return { executed: false, reply: 'LLM call failed' }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  function checkpoint(prompt: string, response: string) {
+    addCheckpoint({ prompt, response, label: prompt.slice(0, 40) })
   }
 
   function findByNameOrId(nameOrId: string): SceneObject | undefined {
@@ -152,14 +294,30 @@ export function ChatPanel() {
     if (!text) return
     push('user', text)
 
+    if (usingLLM) {
+      callLLM(text).then(({ executed, reply }) => {
+        push('system', reply)
+        if (executed) checkpoint(text, reply)
+        else fallbackParse(text)
+      })
+      return
+    }
+
+    fallbackParse(text)
+  }
+
+  function fallbackParse(text: string) {
     const lc = text.toLowerCase()
+    let sys = ''
 
     // mode
     if (/^mode\s+(translate|rotate|scale)/i.test(lc)) {
       const m = lc.match(/^mode\s+(translate|rotate|scale)/i)
       if (m) {
         setMode(m[1] as any)
-        push('system', `Mode set to ${m[1]}`)
+        sys = `Mode set to ${m[1]}`
+        push('system', sys)
+        checkpoint(text, sys)
         return
       }
     }
@@ -167,7 +325,9 @@ export function ChatPanel() {
     // snapping
     if (/^(enable|disable)\s+snapping/.test(lc)) {
       toggleSnap(lc.startsWith('enable'))
-      push('system', `Snapping ${lc.startsWith('enable') ? 'enabled' : 'disabled'}`)
+      sys = `Snapping ${lc.startsWith('enable') ? 'enabled' : 'disabled'}`
+      push('system', sys)
+      checkpoint(text, sys)
       return
     }
     if (/^snap\s+/.test(lc)) {
@@ -177,13 +337,15 @@ export function ChatPanel() {
       if (ts) setSnap({ translateSnap: parseFloat(ts[1]) })
       if (rs) setSnap({ rotateSnap: parseFloat(rs[1]) * Math.PI / 180 })
       if (ss) setSnap({ scaleSnap: parseFloat(ss[1]) })
-      push('system', 'Snap updated')
+      sys = 'Snap updated'
+      push('system', sys)
+      checkpoint(text, sys)
       return
     }
 
     // undo/redo/clear
-    if (lc === 'undo') { undo(); push('system', 'Undid last action'); return }
-    if (lc === 'redo') { redo(); push('system', 'Redid last action'); return }
+    if (lc === 'undo') { undo(); sys = 'Undid last action'; push('system', sys); checkpoint(text, sys); return }
+    if (lc === 'redo') { redo(); sys = 'Redid last action'; push('system', sys); checkpoint(text, sys); return }
     if (lc === 'clear' || lc === 'reset scene') { window.location.reload(); return }
 
     // add object
@@ -192,21 +354,27 @@ export function ChatPanel() {
       const kind = addMatch[1] as GeometryKind
       const params = parseAddParams(kind, addMatch[2] ?? '')
       addObject(kind, params)
-      push('system', `Added ${kind}${params ? ' with params' : ''}`)
+      sys = `Added ${kind}${params ? ' with params' : ''}`
+      push('system', sys)
+      checkpoint(text, sys)
       return
     }
 
     // delete / duplicate
     if (/^(delete|remove|del)$/.test(lc)) {
-      if (!selected) { push('system', 'Nothing selected'); return }
+      if (!selected) { sys = 'Nothing selected'; push('system', sys); return }
       deleteSelected()
-      push('system', 'Deleted selected object')
+      sys = 'Deleted selected object'
+      push('system', sys)
+      checkpoint(text, sys)
       return
     }
     if (/^(duplicate|copy|dup)$/.test(lc)) {
-      if (!selected) { push('system', 'Nothing selected'); return }
+      if (!selected) { sys = 'Nothing selected'; push('system', sys); return }
       duplicateSelected()
-      push('system', 'Duplicated selected object')
+      sys = 'Duplicated selected object'
+      push('system', sys)
+      checkpoint(text, sys)
       return
     }
 
@@ -215,8 +383,8 @@ export function ChatPanel() {
     if (selByName) {
       const name = selByName[1].trim()
       const obj = findByNameOrId(name)
-      if (obj) { select(obj.id); push('system', `Selected ${obj.name}`) }
-      else push('system', `Could not find object "${name}"`)
+      if (obj) { select(obj.id); sys = `Selected ${obj.name}`; push('system', sys); checkpoint(text, sys) }
+      else { sys = `Could not find object "${name}"`; push('system', sys) }
       return
     }
 
@@ -226,7 +394,9 @@ export function ChatPanel() {
       const rawColor = colorMatch[1]
       const hex = COLOR_NAMES[rawColor] ?? rawColor
       updateMaterial(selected.id, { color: hex })
-      push('system', `Set color to ${hex}`)
+      sys = `Set color to ${hex}`
+      push('system', sys)
+      checkpoint(text, sys)
       return
     }
 
@@ -234,7 +404,9 @@ export function ChatPanel() {
     if (opacityMatch && selected) {
       const v = parseNumber(opacityMatch[1], 1)
       updateMaterial(selected.id, { opacity: v, transparent: v < 1 })
-      push('system', `Set opacity to ${v}`)
+      sys = `Set opacity to ${v}`
+      push('system', sys)
+      checkpoint(text, sys)
       return
     }
 
@@ -242,7 +414,9 @@ export function ChatPanel() {
     if (metalMatch && selected) {
       const v = parseNumber(metalMatch[2], 0.1)
       updateMaterial(selected.id, { metalness: v })
-      push('system', `Set metalness to ${v}`)
+      sys = `Set metalness to ${v}`
+      push('system', sys)
+      checkpoint(text, sys)
       return
     }
 
@@ -250,7 +424,9 @@ export function ChatPanel() {
     if (roughMatch && selected) {
       const v = parseNumber(roughMatch[2], 0.8)
       updateMaterial(selected.id, { roughness: v })
-      push('system', `Set roughness to ${v}`)
+      sys = `Set roughness to ${v}`
+      push('system', sys)
+      checkpoint(text, sys)
       return
     }
 
@@ -262,7 +438,9 @@ export function ChatPanel() {
       const dy = parseNumber(rest.match(/y\s+(-?\d*\.?\d+)/)?.[1], 0)
       const dz = parseNumber(rest.match(/z\s+(-?\d*\.?\d+)/)?.[1], 0)
       updateTransform(selected.id, { position: { x: selected.position.x + dx, y: selected.position.y + dy, z: selected.position.z + dz } })
-      push('system', `Moved by (${dx}, ${dy}, ${dz})`)
+      sys = `Moved by (${dx}, ${dy}, ${dz})`
+      push('system', sys)
+      checkpoint(text, sys)
       return
     }
 
@@ -274,7 +452,9 @@ export function ChatPanel() {
       const y = parseNumber(rest.match(/y\s+(-?\d*\.?\d+)/)?.[1], selected.position.y)
       const z = parseNumber(rest.match(/z\s+(-?\d*\.?\d+)/)?.[1], selected.position.z)
       updateTransform(selected.id, { position: { x, y, z } })
-      push('system', `Position set to (${x}, ${y}, ${z})`)
+      sys = `Position set to (${x}, ${y}, ${z})`
+      push('system', sys)
+      checkpoint(text, sys)
       return
     }
 
@@ -290,7 +470,9 @@ export function ChatPanel() {
       const ry = ryRaw ? (hasDeg ? toRadians(parseFloat(ryRaw)) : parseFloat(ryRaw)) : 0
       const rz = rzRaw ? (hasDeg ? toRadians(parseFloat(rzRaw)) : parseFloat(rzRaw)) : 0
       updateTransform(selected.id, { rotation: { x: selected.rotation.x + rx, y: selected.rotation.y + ry, z: selected.rotation.z + rz } })
-      push('system', `Rotated by (${rx.toFixed(3)}, ${ry.toFixed(3)}, ${rz.toFixed(3)}) rad`)
+      sys = `Rotated by (${rx.toFixed(3)}, ${ry.toFixed(3)}, ${rz.toFixed(3)}) rad`
+      push('system', sys)
+      checkpoint(text, sys)
       return
     }
 
@@ -306,7 +488,9 @@ export function ChatPanel() {
       const sy = syRaw ? parseFloat(syRaw) : uniRaw ? parseFloat(uniRaw) : 1
       const sz = szRaw ? parseFloat(szRaw) : uniRaw ? parseFloat(uniRaw) : 1
       updateTransform(selected.id, { scale: { x: selected.scale.x * sx, y: selected.scale.y * sy, z: selected.scale.z * sz } })
-      push('system', `Scaled by (${sx}, ${sy}, ${sz})`)
+      sys = `Scaled by (${sx}, ${sy}, ${sz})`
+      push('system', sys)
+      checkpoint(text, sys)
       return
     }
 
@@ -316,7 +500,9 @@ export function ChatPanel() {
       const kind = geomMatch[1] as GeometryKind
       const params = parseAddParams(kind, geomMatch[2] ?? '')
       updateGeometry(selected.id, kind, params)
-      push('system', `Changed geometry to ${kind}`)
+      sys = `Changed geometry to ${kind}`
+      push('system', sys)
+      checkpoint(text, sys)
       return
     }
 
@@ -326,13 +512,16 @@ export function ChatPanel() {
       const op = boolMatch[1] as 'union' | 'subtract' | 'intersect'
       const a = findByNameOrId(boolMatch[2])
       const b = findByNameOrId(boolMatch[3])
-      if (!a || !b) { push('system', 'Could not find both operands'); return }
+      if (!a || !b) { sys = 'Could not find both operands'; push('system', sys); return }
       booleanOp(op, a.id, b.id)
-      push('system', `Boolean ${op} created from ${a.name} and ${b.name}`)
+      sys = `Boolean ${op} created from ${a.name} and ${b.name}`
+      push('system', sys)
+      checkpoint(text, sys)
       return
     }
 
-    push('system', 'Sorry, I did not understand. Try commands like: add box; move x 1; rotate y 45; scale 1.5; color #ff00ff; delete; duplicate; select Sphere; union A B; undo')
+    sys = 'Sorry, I did not understand. Try commands like: add box; move x 1; rotate y 45; scale 1.5; color #ff00ff; delete; duplicate; select Sphere; union A B; undo'
+    push('system', sys)
   }
 
   function onSubmit(e: React.FormEvent) {
@@ -344,10 +533,34 @@ export function ChatPanel() {
 
   return (
     <Panel>
-      <Header>Chat</Header>
+      <Header>
+        <div>Chat</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <Toggle onClick={() => setUsingLLM(v => !v)}>{usingLLM ? 'LLM: On' : 'LLM: Off'}</Toggle>
+          <Toggle onClick={() => setShowHistory(v => !v)}>{showHistory ? 'Hide' : 'Show'} History</Toggle>
+        </div>
+      </Header>
+      {showHistory && (
+        <History>
+          {checkpoints.length === 0 ? (
+            <div style={{ opacity: 0.6, fontSize: 12 }}>No checkpoints yet</div>
+          ) : (
+            checkpoints.slice(0, 10).map(cp => (
+              <HistoryItem key={cp.id}>
+                <div style={{ flex: 1, minWidth: 0 }} title={cp.prompt ?? cp.label}>
+                  <div style={{ fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cp.label}</div>
+                  <div style={{ opacity: 0.6, fontSize: 11 }}>{new Date(cp.timestamp).toLocaleTimeString()}</div>
+                </div>
+                <SmallBtn onClick={() => restoreCheckpoint(cp.id)}>Restore</SmallBtn>
+                <SmallBtn onClick={() => deleteCheckpoint(cp.id)}>✕</SmallBtn>
+              </HistoryItem>
+            ))
+          )}
+        </History>
+      )}
       <Messages ref={scrollRef}>
         {messages.map((m, i) => (
-          <Message key={i} role={m.role}>{m.text}</Message>
+          <Message key={i} role={m.role}>{m.text}{isLoading && i === messages.length - 1 && usingLLM ? ' …' : ''}</Message>
         ))}
       </Messages>
       <InputRow onSubmit={onSubmit}>

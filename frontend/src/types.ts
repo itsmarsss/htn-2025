@@ -71,6 +71,15 @@ export interface SnapSettings {
   scaleSnap: number; // unit step
 }
 
+export interface Checkpoint {
+  id: string;
+  label: string;
+  timestamp: number;
+  prompt?: string;
+  response?: string;
+  state: HistoryState;
+}
+
 export interface EditorState {
   objects: SceneObject[];
   selectedId: string | null;
@@ -79,4 +88,5 @@ export interface EditorState {
   past: HistoryState[];
   future: HistoryState[];
   isTransforming?: boolean;
+  checkpoints: Checkpoint[];
 }

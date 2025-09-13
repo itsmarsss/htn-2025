@@ -5,7 +5,7 @@ const Panel = styled.div`
   position: absolute;
   top: 56px;
   bottom: 12px;
-  right: 12px;
+  right: 308px;
   width: 280px;
   background: rgba(18, 20, 26, 0.9);
   color: #e6e9ef;
