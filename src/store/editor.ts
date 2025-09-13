@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { nanoid } from 'nanoid'
 import { produce } from 'immer'
-import type { EditorState, GeometryKind, HistoryState, SceneObject, SnapSettings, TransformMode, Vector3, Euler } from '../types'
+import type { EditorState, GeometryKind, HistoryState, SceneObject, SnapSettings, TransformMode, Vector3, Euler, Checkpoint } from '../types'
 import * as THREE from 'three'
 import { CSG } from 'three-csg-ts'
 import { serializeGeometry } from '../utils/geometry'
@@ -70,7 +70,10 @@ const initialState: EditorState & { isTransforming?: boolean } = {
   past: [],
   future: [],
   isTransforming: false,
+  checkpoints: [],
 }
+
+type TransformPartial = { position?: Partial<Vector3>; rotation?: Partial<Euler>; scale?: Partial<Vector3> }
 
 interface EditorStore extends EditorState {
   addObject: (kind: GeometryKind, params?: any) => void;
@@ -80,12 +83,15 @@ interface EditorStore extends EditorState {
   setMode: (mode: TransformMode) => void;
   beginTransform: () => void;
   endTransform: () => void;
-  updateTransform: (id: string, partial: Partial<Pick<SceneObject, 'position' | 'rotation' | 'scale'>>) => void;
+  updateTransform: (id: string, partial: TransformPartial) => void;
   updateMaterial: (id: string, partial: Partial<SceneObject['material']>) => void;
   updateGeometry: (id: string, kind: GeometryKind, params?: any) => void;
   toggleSnap: (enabled: boolean) => void;
   setSnap: (partial: Partial<SnapSettings>) => void;
   booleanOp: (op: 'union' | 'subtract' | 'intersect', aId: string, bId: string) => void;
+  addCheckpoint: (meta: { label?: string; prompt?: string; response?: string }) => void;
+  restoreCheckpoint: (id: string) => void;
+  deleteCheckpoint: (id: string) => void;
   undo: () => void;
   redo: () => void;
   clear: () => void;
@@ -202,6 +208,33 @@ export const useEditor = create<EditorStore>()((set, get) => ({
     })
     return next
   }),
+  addCheckpoint: (meta) => set((state) => {
+    const cp: Checkpoint = {
+      id: nanoid(8),
+      label: meta.label ?? (meta.prompt ? meta.prompt.slice(0, 60) : 'Checkpoint'),
+      timestamp: Date.now(),
+      prompt: meta.prompt,
+      response: meta.response,
+      state: snapshot(state),
+    }
+    const next = produce(state, (draft) => {
+      draft.checkpoints.unshift(cp)
+      if (draft.checkpoints.length > 100) draft.checkpoints = draft.checkpoints.slice(0, 100)
+    })
+    return next
+  }),
+  restoreCheckpoint: (id) => set((state) => {
+    const cp = state.checkpoints.find(c => c.id === id)
+    if (!cp) return state
+    const next = produce(state, (draft) => {
+      draft.past.push(snapshot(state))
+      draft.future = []
+      draft.objects = JSON.parse(JSON.stringify(cp.state.objects))
+      draft.selectedId = cp.state.selectedId
+    })
+    return next
+  }),
+  deleteCheckpoint: (id) => set((state) => ({ ...state, checkpoints: state.checkpoints.filter(c => c.id !== id) })),
   undo: () => set((state) => {
     if (state.past.length === 0) return state
     const prev = state.past[state.past.length - 1]
