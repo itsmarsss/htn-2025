@@ -7,6 +7,7 @@ import { useShortcuts } from "../hooks/useShortcuts";
 import SnapPanel from "./SnapPanel";
 import BooleanPanel from "./BooleanPanel";
 import HolohandsOverlay from "../holo/components/HolohandsOverlay";
+import ChatPanel from "./ChatPanel";
 
 const Global = createGlobalStyle`
   html, body, #root {
@@ -43,11 +44,11 @@ export function Layout() {
             <ViewportWrap>
                 <Viewport />
             </ViewportWrap>
-            <HolohandsOverlay />
             <Toolbar />
             <Inspector />
             <SnapPanel />
             <BooleanPanel />
+            <ChatPanel />
         </Root>
     );
 }
