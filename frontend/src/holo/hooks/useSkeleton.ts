@@ -46,7 +46,8 @@ export default function useSkeleton({
         Right: null,
     });
 
-    const smoothingFactor = 0.5;
+    // Lower smoothing to reduce latency of cursor and drawings
+    const smoothingFactor = 0.2;
 
     const smoothValue = (previous: number | null, current: number) => {
         if (previous === null) return current;

@@ -2,7 +2,7 @@ import styled, { createGlobalStyle } from "styled-components";
 import Topbar from "./Topbar";
 import Toolbar from "./Toolbar";
 import Inspector from "./Inspector";
-import Viewport from "./Viewport";
+// Viewport removed in favor of legacy Three.js renderer wired via HolohandsOverlay
 import { useShortcuts } from "../hooks/useShortcuts";
 import SnapPanel from "./SnapPanel";
 import BooleanPanel from "./BooleanPanel";
@@ -30,10 +30,10 @@ const Root = styled.div`
     height: 100vh;
 `;
 
-const ViewportWrap = styled.div`
-    position: absolute;
-    inset: 56px 0 0 0;
-`;
+// const ViewportWrap = styled.div`
+//     position: absolute;
+//     inset: 56px 0 0 0;
+// `;
 
 export function Layout() {
     useShortcuts();
@@ -41,9 +41,7 @@ export function Layout() {
         <Root>
             <Global />
             <Topbar />
-            <ViewportWrap>
-                <Viewport />
-            </ViewportWrap>
+            {/* Three.js renderer is mounted inside HolohandsOverlay now */}
             <HolohandsOverlay />
             <Toolbar />
             <Inspector />

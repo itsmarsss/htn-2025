@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { WebSocketProvider, useWebSocket } from "../provider/WebSocketContext";
+import { ThreeDProvider } from "../provider/ThreeDContext";
+import ThreeRenderer from "./ThreeRenderer";
 import {
     VideoStreamProvider,
     useVideoStream,
@@ -72,7 +74,7 @@ function OverlayInner() {
             } as any) as CanvasRenderingContext2D | null) ?? null;
     }, []);
 
-    // Main loop copied from old implementation: capture->send->receive->draw per frame
+    // Main loop: draw every frame; capture/send runs asynchronously when acked
     useEffect(() => {
         let raf: number;
         let prevL: { x: number; y: number } | null = null;
@@ -80,13 +82,14 @@ function OverlayInner() {
         let prevDist: number | null = null;
         const lastStatusRef = { value: "" } as { value: string };
         const lastStatusUpdateRef = { value: 0 } as { value: number };
+        let capturing = false;
 
         // FPS counters
         const frameCountRef = { value: 0 } as { value: number };
         const lastTimeRef = { value: Date.now() } as { value: number };
 
-        const loop = async () => {
-            // Throttle status updates
+        const tick = () => {
+            // Throttle status updates (no await)
             const now = performance.now();
             if (now - lastStatusUpdateRef.value > 250) {
                 const s = getConnectionStatus();
@@ -95,118 +98,144 @@ function OverlayInner() {
                 lastStatusUpdateRef.value = now;
             }
 
-            // Acknowledge & capture frame before drawing
-            if (getAcknowledged()) {
-                const frame = await captureFrame();
-                if (frame) sendFrame(frame);
+            // If server ready, start an async capture/send without blocking the loop
+            if (getAcknowledged() && !capturing) {
+                capturing = true;
+                captureFrame()
+                    .then((frame) => {
+                        if (frame) sendFrame(frame);
+                    })
+                    .finally(() => {
+                        capturing = false;
+                    });
             }
 
             const canvas = canvasRef.current;
-            if (!canvas) return;
-            const ctx =
-                ctxRef.current ||
-                (canvas.getContext("2d") as CanvasRenderingContext2D | null);
-            if (!ctx) return;
-            if (!ctxRef.current) ctxRef.current = ctx;
+            if (canvas) {
+                const ctx =
+                    ctxRef.current ||
+                    (canvas.getContext(
+                        "2d"
+                    ) as CanvasRenderingContext2D | null);
+                if (ctx) {
+                    if (!ctxRef.current) ctxRef.current = ctx;
 
-            const data = getData() as any;
-            if (data && data.hands) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                const size = { width: 640, height: 360 };
-                processHands(data.hands, size, ctx);
+                    const data = getData() as any;
+                    if (data && data.hands) {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        const size = {
+                            width: canvas.width,
+                            height: canvas.height,
+                        };
+                        processHands(data.hands, size, ctx);
 
-                const anyPinch = Boolean(
-                    (interactionRef.current.Left &&
-                        interactionRef.current.Left.isPinching) ||
-                        (interactionRef.current.Right &&
-                            interactionRef.current.Right.isPinching)
-                );
-                if (anyPinch && !prevPinchingRef.current) startHandDrag();
-                const refHand =
-                    interactionRef.current.Right || interactionRef.current.Left;
-                if (refHand && refHand.cursor) {
-                    const u = Math.max(
-                        0,
-                        Math.min(1, refHand.cursor.coords.x / size.width)
-                    );
-                    const v = Math.max(
-                        0,
-                        Math.min(1, 1 - refHand.cursor.coords.y / size.height)
-                    );
-                    updateHandDragNormalized(u, v);
-                }
-                const L = interactionRef.current.Left;
-                const R = interactionRef.current.Right;
-                const lHold = Boolean(L?.isHolding);
-                const rHold = Boolean(R?.isHolding);
+                        const anyPinch = Boolean(
+                            (interactionRef.current.Left &&
+                                interactionRef.current.Left.isPinching) ||
+                                (interactionRef.current.Right &&
+                                    interactionRef.current.Right.isPinching)
+                        );
+                        if (anyPinch && !prevPinchingRef.current)
+                            startHandDrag();
+                        const refHand =
+                            interactionRef.current.Right ||
+                            interactionRef.current.Left;
+                        if (refHand && refHand.cursor) {
+                            const u = Math.max(
+                                0,
+                                Math.min(
+                                    1,
+                                    refHand.cursor.coords.x / size.width
+                                )
+                            );
+                            const v = Math.max(
+                                0,
+                                Math.min(
+                                    1,
+                                    1 - refHand.cursor.coords.y / size.height
+                                )
+                            );
+                            updateHandDragNormalized(u, v);
+                        }
+                        const L = interactionRef.current.Left;
+                        const R = interactionRef.current.Right;
+                        const lHold = Boolean(L?.isHolding);
+                        const rHold = Boolean(R?.isHolding);
 
-                if (lHold && rHold && L?.cursor && R?.cursor) {
-                    // Pan using left-hand movement
-                    const dxPan =
-                        (L.cursor.coords.x - (prevL?.x ?? L.cursor.coords.x)) /
-                        size.width;
-                    const dyPan =
-                        (L.cursor.coords.y - (prevL?.y ?? L.cursor.coords.y)) /
-                        size.height;
-                    orbitPan(dxPan, dyPan);
-                    prevL = { x: L.cursor.coords.x, y: L.cursor.coords.y };
+                        if (lHold && rHold && L?.cursor && R?.cursor) {
+                            const dxPan =
+                                (L.cursor.coords.x -
+                                    (prevL?.x ?? L.cursor.coords.x)) /
+                                size.width;
+                            const dyPan =
+                                (L.cursor.coords.y -
+                                    (prevL?.y ?? L.cursor.coords.y)) /
+                                size.height;
+                            orbitPan(dxPan, dyPan);
+                            prevL = {
+                                x: L.cursor.coords.x,
+                                y: L.cursor.coords.y,
+                            };
 
-                    // Zoom using distance change between hands
-                    const currDist = Math.hypot(
-                        R.cursor.coords.x - L.cursor.coords.x,
-                        R.cursor.coords.y - L.cursor.coords.y
-                    );
-                    if (prevDist != null) {
-                        const deltaZoom = (prevDist - currDist) / size.width;
-                        orbitDolly(deltaZoom);
+                            const currDist = Math.hypot(
+                                R.cursor.coords.x - L.cursor.coords.x,
+                                R.cursor.coords.y - L.cursor.coords.y
+                            );
+                            if (prevDist != null) {
+                                const deltaZoom =
+                                    (prevDist - currDist) / size.width;
+                                orbitDolly(deltaZoom);
+                            }
+                            prevDist = currDist;
+                        } else if (
+                            (lHold && L?.cursor) ||
+                            (rHold && R?.cursor)
+                        ) {
+                            const H = rHold ? R! : L!;
+                            const prev = rHold ? prevR : prevL;
+                            const dx =
+                                (H.cursor!.coords.x -
+                                    (prev?.x ?? H.cursor!.coords.x)) /
+                                size.width;
+                            const dy =
+                                (H.cursor!.coords.y -
+                                    (prev?.y ?? H.cursor!.coords.y)) /
+                                size.height;
+                            orbitRotate(dx, dy);
+                            if (rHold)
+                                prevR = {
+                                    x: H.cursor!.coords.x,
+                                    y: H.cursor!.coords.y,
+                                };
+                            else
+                                prevL = {
+                                    x: H.cursor!.coords.x,
+                                    y: H.cursor!.coords.y,
+                                };
+                            prevDist = null;
+                        } else {
+                            prevL = prevR = null;
+                            prevDist = null;
+                        }
+                        if (!anyPinch && prevPinchingRef.current) endHandDrag();
+                        prevPinchingRef.current = anyPinch;
                     }
-                    prevDist = currDist;
-                } else if ((lHold && L?.cursor) || (rHold && R?.cursor)) {
-                    // Rotate using whichever hand is holding
-                    const H = rHold ? R! : L!;
-                    const prev = rHold ? prevR : prevL;
-                    const dx =
-                        (H.cursor!.coords.x - (prev?.x ?? H.cursor!.coords.x)) /
-                        size.width;
-                    const dy =
-                        (H.cursor!.coords.y - (prev?.y ?? H.cursor!.coords.y)) /
-                        size.height;
-                    orbitRotate(dx, dy);
-                    if (rHold)
-                        prevR = {
-                            x: H.cursor!.coords.x,
-                            y: H.cursor!.coords.y,
-                        };
-                    else
-                        prevL = {
-                            x: H.cursor!.coords.x,
-                            y: H.cursor!.coords.y,
-                        };
-                    prevDist = null;
-                } else {
-                    // No holds: reset gesture memory
-                    prevL = prevR = null;
-                    prevDist = null;
+
+                    // FPS calc
+                    frameCountRef.value += 1;
+                    const deltaMs = Date.now() - lastTimeRef.value;
+                    if (deltaMs >= 1000) {
+                        fpsRef.current = frameCountRef.value;
+                        frameCountRef.value = 0;
+                        lastTimeRef.value = Date.now();
+                    }
                 }
-                if (!anyPinch && prevPinchingRef.current) endHandDrag();
-                prevPinchingRef.current = anyPinch;
             }
 
-            // FPS calc
-            frameCountRef.value += 1;
-            const deltaMs = Date.now() - lastTimeRef.value;
-            if (deltaMs >= 1000) {
-                fpsRef.current = frameCountRef.value;
-                frameCountRef.value = 0;
-                lastTimeRef.value = Date.now();
-            }
+            raf = requestAnimationFrame(tick);
         };
 
-        const master = async () => {
-            await loop();
-            raf = requestAnimationFrame(master);
-        };
-        raf = requestAnimationFrame(master);
+        raf = requestAnimationFrame(tick);
         return () => cancelAnimationFrame(raf);
     }, [
         getConnectionStatus,
@@ -226,54 +255,73 @@ function OverlayInner() {
     // Force rerenders on status changes; data is consumed directly in loop
 
     return (
-        <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+        <div style={{ position: "absolute", inset: 0 }}>
             <div
                 style={{
                     position: "absolute",
-                    right: 12,
-                    top: 64,
-                    zIndex: 10,
-                    display: "flex",
-                    gap: 8,
-                    pointerEvents: "auto",
-                }}
-            >
-                <video
-                    ref={videoRef as any}
-                    style={{
-                        width: 160,
-                        height: 90,
-                        background: "#111",
-                        transform: "scaleX(-1)",
-                    }}
-                    autoPlay
-                    muted
-                />
-                <div
-                    style={{ display: "flex", flexDirection: "column", gap: 8 }}
-                >
-                    <div
-                        style={{
-                            fontSize: 12,
-                            color: "#bbb",
-                            background: "rgba(0,0,0,0.4)",
-                            padding: "4px 6px",
-                            borderRadius: 4,
-                        }}
-                    >
-                        {status}
-                    </div>
-                </div>
-            </div>
-            <canvas
-                ref={canvasRef}
-                style={{
-                    position: "absolute",
-                    background: "transparent",
-                    zIndex: 5,
+                    inset: 0,
                     pointerEvents: "none",
                 }}
-            />
+            >
+                <div
+                    style={{
+                        position: "absolute",
+                        right: 12,
+                        top: 64,
+                        zIndex: 10,
+                        display: "flex",
+                        gap: 8,
+                        pointerEvents: "auto",
+                    }}
+                >
+                    <video
+                        ref={videoRef as any}
+                        style={{
+                            width: 160,
+                            height: 90,
+                            background: "#111",
+                            transform: "scaleX(-1)",
+                        }}
+                        autoPlay
+                        muted
+                    />
+                    <div
+                        style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 8,
+                        }}
+                    >
+                        <div
+                            style={{
+                                fontSize: 12,
+                                color: "#bbb",
+                                background: "rgba(0,0,0,0.4)",
+                                padding: "4px 6px",
+                                borderRadius: 4,
+                            }}
+                        >
+                            {status}
+                        </div>
+                    </div>
+                </div>
+                <canvas
+                    ref={canvasRef}
+                    style={{
+                        position: "absolute",
+                        background: "transparent",
+                        zIndex: 5,
+                        pointerEvents: "none",
+                    }}
+                />
+            </div>
+            <div style={{ position: "absolute", inset: 56, zIndex: 0 }}>
+                <ThreeDProvider>
+                    <ThreeRenderer
+                        interactionStateRef={interactionRef as any}
+                    />
+                </ThreeDProvider>
+            </div>
         </div>
     );
 }
