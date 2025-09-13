@@ -353,8 +353,12 @@ export function Viewport() {
             createCube: () => addObject("box"),
             createSphere: () => addObject("sphere"),
             startHandDrag: () => {
-                // begin transform if a selected object exists
-                const selectedId = useEditor.getState().selectedId;
+                // Ensure there is a selected object; if none, create one and select it
+                let selectedId = useEditor.getState().selectedId;
+                if (!selectedId) {
+                    useEditor.getState().addObject("box");
+                    selectedId = useEditor.getState().selectedId;
+                }
                 if (selectedId) useEditor.getState().beginTransform();
             },
             updateHandDragNormalized: (u: number, v: number) => {

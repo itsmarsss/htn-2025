@@ -86,9 +86,13 @@ function OverlayInner() {
                             0,
                             Math.min(1, refHand.cursor.coords.x / size.width)
                         );
+                        // invert Y so upward movement increases Z positive
                         const v = Math.max(
                             0,
-                            Math.min(1, refHand.cursor.coords.y / size.height)
+                            Math.min(
+                                1,
+                                1 - refHand.cursor.coords.y / size.height
+                            )
                         );
                         updateHandDragNormalized(u, v);
                     }

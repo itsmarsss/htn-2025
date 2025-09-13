@@ -44,6 +44,7 @@ export function Layout() {
             <ViewportWrap>
                 <Viewport />
             </ViewportWrap>
+            <HolohandsOverlay />
             <Toolbar />
             <Inspector />
             <SnapPanel />
