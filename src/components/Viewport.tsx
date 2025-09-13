@@ -2,6 +2,7 @@ import { memo, useRef, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import type { ThreeElements } from "@react-three/fiber";
 import {
+    AccumulativeShadows,
     GizmoHelper,
     GizmoViewport,
     Grid,
@@ -12,8 +13,8 @@ import {
 import { useEditor } from "../store/editor";
 import * as THREE from "three";
 import { deserializeGeometry } from "../utils/geometry";
-import type { GeometryParamsMap, EditorState, SceneObject } from "../types";
 import { useRegisterViewportActions } from "../provider/ViewportContext";
+import type { GeometryParamsMap, EditorState, SceneObject } from "../types";
 import { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { TransformControls as TransformControlsImpl } from "three-stdlib";
 
@@ -68,10 +69,60 @@ function RenderObject({
 }) {
     const transformRef = useRef<TransformControlsImpl>(null);
     const meshRef = useRef<THREE.Mesh>(null);
-    const setGizmoInteracting = useEditor((s) => s.setGizmoInteracting);
-    const isTransforming = useEditor(
-        (s: EditorState) => s.isTransforming ?? false
-    );
+
+    useEffect(() => {
+        if (!transformRef.current || !isSelected) return;
+
+        const controls = transformRef.current as any;
+        const handleDraggingChanged = (event: any) => {
+            if (!event || typeof event.value !== "boolean") return;
+            const isDragging = event.value as boolean;
+            if (orbitRef.current) {
+                orbitRef.current.enabled = !isDragging;
+            }
+            if (isDragging) {
+                beginTransform();
+            } else {
+                // Commit the transform when dragging ends
+                const obj = meshRef.current;
+                if (obj) {
+                    updateTransform(o.id, {
+                        position: {
+                            x: obj.position.x,
+                            y: obj.position.y,
+                            z: obj.position.z,
+                        },
+                        rotation: {
+                            x: obj.rotation.x,
+                            y: obj.rotation.y,
+                            z: obj.rotation.z,
+                        },
+                        scale: {
+                            x: obj.scale.x,
+                            y: obj.scale.y,
+                            z: obj.scale.z,
+                        },
+                    });
+                }
+                endTransform();
+            }
+        };
+
+        controls.addEventListener("dragging-changed", handleDraggingChanged);
+        return () => {
+            controls.removeEventListener(
+                "dragging-changed",
+                handleDraggingChanged
+            );
+        };
+    }, [
+        isSelected,
+        orbitRef,
+        beginTransform,
+        endTransform,
+        updateTransform,
+        o.id,
+    ]);
 
     const position: ThreeElements["group"]["position"] = [
         o.position.x,
@@ -196,17 +247,15 @@ function RenderObject({
         }
     })();
 
-    const meshProps =
-        !isSelected || !isTransforming ? { position, rotation, scale } : {};
-
     const mesh = (
         <mesh
             ref={meshRef}
             visible={o.visible}
-            {...(meshProps as Partial<ThreeElements["mesh"]>)}
+            position={position}
+            rotation={rotation}
+            scale={scale}
             castShadow
             receiveShadow
-            raycast={isSelected ? () => {} : undefined}
         >
             {geom}
             {material}
@@ -226,40 +275,6 @@ function RenderObject({
                 }
                 rotationSnap={snap.enableSnapping ? snap.rotateSnap : undefined}
                 scaleSnap={snap.enableSnapping ? snap.scaleSnap : undefined}
-                onPointerDown={() => {
-                    if (orbitRef.current) orbitRef.current.enabled = false;
-                    setGizmoInteracting(true);
-                    beginTransform();
-                }}
-                onPointerUp={() => {
-                    const obj = (
-                        transformRef.current as unknown as {
-                            object?: THREE.Object3D;
-                        }
-                    )?.object;
-                    if (obj) {
-                        updateTransform(o.id, {
-                            position: {
-                                x: obj.position.x,
-                                y: obj.position.y,
-                                z: obj.position.z,
-                            },
-                            rotation: {
-                                x: obj.rotation.x,
-                                y: obj.rotation.y,
-                                z: obj.rotation.z,
-                            },
-                            scale: {
-                                x: obj.scale.x,
-                                y: obj.scale.y,
-                                z: obj.scale.z,
-                            },
-                        });
-                    }
-                    endTransform();
-                    setGizmoInteracting(false);
-                    if (orbitRef.current) orbitRef.current.enabled = true;
-                }}
             >
                 {mesh}
             </TransformControls>
@@ -320,10 +335,6 @@ export function Viewport() {
     const isTransforming = useEditor(
         (s: EditorState) => s.isTransforming ?? false
     );
-    const isGizmoInteracting = useEditor(
-        (s: EditorState & { isGizmoInteracting?: boolean }) =>
-            s.isGizmoInteracting ?? false
-    );
     const orbitRef = useRef<OrbitControlsImpl | null>(null);
     const addObject = useEditor((s) => s.addObject);
     const register = useRegisterViewportActions();
@@ -332,15 +343,18 @@ export function Viewport() {
         register({
             resetCamera: () => {
                 if (!orbitRef.current) return;
+                // Reset OrbitControls target and position
                 (orbitRef.current as any).target.set(0, 0, 0);
                 const camera = (orbitRef.current as any).object as THREE.Camera;
-                if ((camera as any).position)
+                if ((camera as any).position) {
                     (camera as any).position.set(4, 3, 6);
+                }
                 (orbitRef.current as any).update?.();
             },
             createCube: () => addObject("box"),
             createSphere: () => addObject("sphere"),
             startHandDrag: () => {
+                // Ensure there is a selected object; if none, create one and select it
                 let selectedId = useEditor.getState().selectedId;
                 if (!selectedId) {
                     useEditor.getState().addObject("box");
@@ -349,12 +363,13 @@ export function Viewport() {
                 if (selectedId) useEditor.getState().beginTransform();
             },
             updateHandDragNormalized: (u: number, v: number) => {
+                // map normalized [0,1] overlay coords to world XZ plane around origin
                 const selectedId = useEditor.getState().selectedId;
                 if (!selectedId) return;
                 const objects = useEditor.getState().objects;
                 const obj = objects.find((o) => o.id === selectedId);
                 if (!obj) return;
-                const range = 5;
+                const range = 5; // +/- range in world units
                 const x = (u - 0.5) * 2 * range;
                 const z = (v - 0.5) * 2 * range;
                 useEditor.getState().updateTransform(selectedId, {
@@ -368,85 +383,23 @@ export function Viewport() {
             orbitRotate: (dxN: number, dyN: number) => {
                 if (!orbitRef.current) return;
                 const ctrl = orbitRef.current as any;
-                const camera = ctrl.object as THREE.Camera;
-                const target: THREE.Vector3 =
-                    ctrl.target || new THREE.Vector3();
-                if (!(camera as any).position) return;
-
-                const pos = (camera as any).position as THREE.Vector3;
-                const offset = new THREE.Vector3().subVectors(pos, target);
-                const spherical = new THREE.Spherical().setFromVector3(offset);
-
-                const rotSpeed = Math.PI; // radians per full dxN=1 movement
-                spherical.theta -= dxN * rotSpeed;
-                spherical.phi -= dyN * rotSpeed;
-
-                const EPS = 1e-6;
-                spherical.phi = Math.max(
-                    EPS,
-                    Math.min(Math.PI - EPS, spherical.phi)
-                );
-
-                const newOffset = new THREE.Vector3().setFromSpherical(
-                    spherical
-                );
-                pos.copy(new THREE.Vector3().addVectors(target, newOffset));
-                (camera as any).lookAt(target);
+                const rotSpeed = 1.2;
+                ctrl.rotateLeft(-dxN * rotSpeed);
+                ctrl.rotateUp(-dyN * rotSpeed);
                 ctrl.update?.();
             },
             orbitPan: (dxN: number, dyN: number) => {
                 if (!orbitRef.current) return;
                 const ctrl = orbitRef.current as any;
-                const camera = ctrl.object as THREE.Camera;
-                const target: THREE.Vector3 =
-                    ctrl.target || new THREE.Vector3();
-                if (!camera) return;
-
-                // Determine pan distance scaling
-                let panX = 0;
-                let panY = 0;
-                if ((camera as any).isPerspectiveCamera) {
-                    const perspective = camera as THREE.PerspectiveCamera;
-                    const distance = perspective.position
-                        .clone()
-                        .sub(target)
-                        .length();
-                    const halfFovY = (perspective.fov * Math.PI) / 180 / 2;
-                    const heightAtDistance = 2 * distance * Math.tan(halfFovY);
-                    panX = -dxN * heightAtDistance;
-                    panY = dyN * heightAtDistance;
-                } else if ((camera as any).isOrthographicCamera) {
-                    const ortho = camera as THREE.OrthographicCamera;
-                    const width = (ortho.right - ortho.left) / ortho.zoom;
-                    const height = (ortho.top - ortho.bottom) / ortho.zoom;
-                    panX = -dxN * width;
-                    panY = dyN * height;
-                } else {
-                    const fallbackScale = 10;
-                    panX = -dxN * fallbackScale;
-                    panY = dyN * fallbackScale;
-                }
-
-                // Move camera and target along camera axes
-                const xAxis = new THREE.Vector3();
-                const yAxis = new THREE.Vector3();
-                const zAxis = new THREE.Vector3();
-                (camera as any).matrix.extractBasis(xAxis, yAxis, zAxis);
-                const panOffset = new THREE.Vector3();
-                panOffset
-                    .add(xAxis.multiplyScalar(panX))
-                    .add(yAxis.multiplyScalar(panY));
-                (camera as any).position.add(panOffset);
-                target.add(panOffset);
+                const panSpeed = 2;
+                ctrl.pan(dxN * panSpeed, -dyN * panSpeed);
                 ctrl.update?.();
             },
             orbitDolly: (delta: number) => {
                 if (!orbitRef.current) return;
                 const ctrl = orbitRef.current as any;
                 const zoomFactor = Math.exp(delta * 0.5);
-                if (typeof ctrl.dollyIn === "function") {
-                    ctrl.dollyIn(zoomFactor);
-                }
+                ctrl.dollyIn(zoomFactor);
                 ctrl.update?.();
             },
         });
@@ -457,7 +410,7 @@ export function Viewport() {
             shadows
             dpr={[1, 2]}
             onPointerMissed={() => {
-                if (!isTransforming && !isGizmoInteracting) select(null);
+                if (!isTransforming) select(null);
             }}
         >
             <color attach="background" args={[0.08, 0.08, 0.1]} />
@@ -477,7 +430,15 @@ export function Viewport() {
                 cellThickness={0.3}
                 sectionThickness={1}
             />
-            {/* AccumulativeShadows temporarily disabled to avoid drei uniform .value crash */}
+            <AccumulativeShadows
+                frames={60}
+                temporal
+                alphaTest={0.9}
+                scale={20}
+                position={[0, -0.001, 0]}
+            >
+                <ambientLight intensity={0.5} />
+            </AccumulativeShadows>
             <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
                 <GizmoViewport
                     axisColors={["#ff6b6b", "#51cf66", "#4dabf7"]}

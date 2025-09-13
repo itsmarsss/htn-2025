@@ -17,19 +17,14 @@ function OverlayInner() {
         orbitPan,
         orbitDolly,
     } = useViewportActions() as any;
-    const {
-        getConnectionStatus,
-        getData,
-        getDataVersion,
-        sendFrame,
-        getAcknowledged,
-    } = useWebSocket();
+    const { getConnectionStatus, getData, sendFrame, getAcknowledged } =
+        useWebSocket();
     const { videoRef, captureFrame } = useVideoStream();
     const [status, setStatus] = useState("Connecting...");
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
     const fpsRef = useRef<number>(0);
-    const lastVersionRef = useRef<number>(-1);
+    // no longer needed when using old-style loop
     const interactionRef = useRef<InteractionState>({
         Left: null,
         Right: null,
@@ -77,7 +72,7 @@ function OverlayInner() {
             } as any) as CanvasRenderingContext2D | null) ?? null;
     }, []);
 
-    // Fast draw loop
+    // Main loop copied from old implementation: capture->send->receive->draw per frame
     useEffect(() => {
         let raf: number;
         let prevL: { x: number; y: number } | null = null;
@@ -85,8 +80,13 @@ function OverlayInner() {
         let prevDist: number | null = null;
         const lastStatusRef = { value: "" } as { value: string };
         const lastStatusUpdateRef = { value: 0 } as { value: number };
-        const draw = () => {
-            // Throttle status updates to avoid per-frame React state changes
+
+        // FPS counters
+        const frameCountRef = { value: 0 } as { value: number };
+        const lastTimeRef = { value: Date.now() } as { value: number };
+
+        const loop = async () => {
+            // Throttle status updates
             const now = performance.now();
             if (now - lastStatusUpdateRef.value > 250) {
                 const s = getConnectionStatus();
@@ -94,125 +94,134 @@ function OverlayInner() {
                 lastStatusRef.value = s;
                 lastStatusUpdateRef.value = now;
             }
-            const currVersion = getDataVersion();
-            const hasNewData = currVersion !== lastVersionRef.current;
-            const data = hasNewData ? (getData() as any) : null;
-            const canvas = canvasRef.current;
-            if (data && data.hands && canvas) {
-                const ctx =
-                    ctxRef.current ??
-                    (canvas.getContext(
-                        "2d"
-                    ) as CanvasRenderingContext2D | null);
-                if (!ctxRef.current && ctx) ctxRef.current = ctx;
-                if (ctx) {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    const size = data.image_size || { width: 640, height: 360 };
-                    processHands(data.hands, size, ctx);
-                    const anyPinch = Boolean(
-                        (interactionRef.current.Left &&
-                            interactionRef.current.Left.isPinching) ||
-                            (interactionRef.current.Right &&
-                                interactionRef.current.Right.isPinching)
-                    );
-                    if (anyPinch && !prevPinchingRef.current) startHandDrag();
-                    const refHand =
-                        interactionRef.current.Right ||
-                        interactionRef.current.Left;
-                    if (refHand && refHand.cursor) {
-                        const u = Math.max(
-                            0,
-                            Math.min(1, refHand.cursor.coords.x / size.width)
-                        );
-                        // invert Y so upward movement increases Z positive
-                        const v = Math.max(
-                            0,
-                            Math.min(
-                                1,
-                                1 - refHand.cursor.coords.y / size.height
-                            )
-                        );
-                        updateHandDragNormalized(u, v);
-                    }
-                    // Camera gestures when not pinching
-                    const L = interactionRef.current.Left;
-                    const R = interactionRef.current.Right;
-                    if (!anyPinch) {
-                        if (R?.cursor) {
-                            const dx =
-                                (R.cursor.coords.x -
-                                    (prevR?.x ?? R.cursor.coords.x)) /
-                                size.width;
-                            const dy =
-                                (R.cursor.coords.y -
-                                    (prevR?.y ?? R.cursor.coords.y)) /
-                                size.height;
-                            orbitRotate(dx, dy);
-                            prevR = {
-                                x: R.cursor.coords.x,
-                                y: R.cursor.coords.y,
-                            };
-                        }
-                        if (L?.cursor) {
-                            const dx =
-                                (L.cursor.coords.x -
-                                    (prevL?.x ?? L.cursor.coords.x)) /
-                                size.width;
-                            const dy =
-                                (L.cursor.coords.y -
-                                    (prevL?.y ?? L.cursor.coords.y)) /
-                                size.height;
-                            orbitPan(dx, dy);
-                            prevL = {
-                                x: L.cursor.coords.x,
-                                y: L.cursor.coords.y,
-                            };
-                        }
-                        if (L?.cursor && R?.cursor) {
-                            const currDist = Math.hypot(
-                                R.cursor.coords.x - L.cursor.coords.x,
-                                R.cursor.coords.y - L.cursor.coords.y
-                            );
-                            if (prevDist != null) {
-                                const delta =
-                                    (prevDist - currDist) / size.width;
-                                orbitDolly(delta);
-                            }
-                            prevDist = currDist;
-                        } else {
-                            prevDist = null;
-                        }
-                    } else {
-                        prevL = prevR = null;
-                        prevDist = null;
-                    }
-                    if (!anyPinch && prevPinchingRef.current) endHandDrag();
-                    prevPinchingRef.current = anyPinch;
-                    lastVersionRef.current = currVersion;
-                }
+
+            // Acknowledge & capture frame before drawing
+            if (getAcknowledged()) {
+                const frame = await captureFrame();
+                if (frame) sendFrame(frame);
             }
-            raf = requestAnimationFrame(draw);
+
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            const ctx =
+                ctxRef.current ||
+                (canvas.getContext("2d") as CanvasRenderingContext2D | null);
+            if (!ctx) return;
+            if (!ctxRef.current) ctxRef.current = ctx;
+
+            const data = getData() as any;
+            if (data && data.hands) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const size = { width: 640, height: 360 };
+                processHands(data.hands, size, ctx);
+
+                const anyPinch = Boolean(
+                    (interactionRef.current.Left &&
+                        interactionRef.current.Left.isPinching) ||
+                        (interactionRef.current.Right &&
+                            interactionRef.current.Right.isPinching)
+                );
+                if (anyPinch && !prevPinchingRef.current) startHandDrag();
+                const refHand =
+                    interactionRef.current.Right || interactionRef.current.Left;
+                if (refHand && refHand.cursor) {
+                    const u = Math.max(
+                        0,
+                        Math.min(1, refHand.cursor.coords.x / size.width)
+                    );
+                    const v = Math.max(
+                        0,
+                        Math.min(1, 1 - refHand.cursor.coords.y / size.height)
+                    );
+                    updateHandDragNormalized(u, v);
+                }
+                const L = interactionRef.current.Left;
+                const R = interactionRef.current.Right;
+                const lHold = Boolean(L?.isHolding);
+                const rHold = Boolean(R?.isHolding);
+
+                if (lHold && rHold && L?.cursor && R?.cursor) {
+                    // Pan using left-hand movement
+                    const dxPan =
+                        (L.cursor.coords.x - (prevL?.x ?? L.cursor.coords.x)) /
+                        size.width;
+                    const dyPan =
+                        (L.cursor.coords.y - (prevL?.y ?? L.cursor.coords.y)) /
+                        size.height;
+                    orbitPan(dxPan, dyPan);
+                    prevL = { x: L.cursor.coords.x, y: L.cursor.coords.y };
+
+                    // Zoom using distance change between hands
+                    const currDist = Math.hypot(
+                        R.cursor.coords.x - L.cursor.coords.x,
+                        R.cursor.coords.y - L.cursor.coords.y
+                    );
+                    if (prevDist != null) {
+                        const deltaZoom = (prevDist - currDist) / size.width;
+                        orbitDolly(deltaZoom);
+                    }
+                    prevDist = currDist;
+                } else if ((lHold && L?.cursor) || (rHold && R?.cursor)) {
+                    // Rotate using whichever hand is holding
+                    const H = rHold ? R! : L!;
+                    const prev = rHold ? prevR : prevL;
+                    const dx =
+                        (H.cursor!.coords.x - (prev?.x ?? H.cursor!.coords.x)) /
+                        size.width;
+                    const dy =
+                        (H.cursor!.coords.y - (prev?.y ?? H.cursor!.coords.y)) /
+                        size.height;
+                    orbitRotate(dx, dy);
+                    if (rHold)
+                        prevR = {
+                            x: H.cursor!.coords.x,
+                            y: H.cursor!.coords.y,
+                        };
+                    else
+                        prevL = {
+                            x: H.cursor!.coords.x,
+                            y: H.cursor!.coords.y,
+                        };
+                    prevDist = null;
+                } else {
+                    // No holds: reset gesture memory
+                    prevL = prevR = null;
+                    prevDist = null;
+                }
+                if (!anyPinch && prevPinchingRef.current) endHandDrag();
+                prevPinchingRef.current = anyPinch;
+            }
+
+            // FPS calc
+            frameCountRef.value += 1;
+            const deltaMs = Date.now() - lastTimeRef.value;
+            if (deltaMs >= 1000) {
+                fpsRef.current = frameCountRef.value;
+                frameCountRef.value = 0;
+                lastTimeRef.value = Date.now();
+            }
         };
-        raf = requestAnimationFrame(draw);
+
+        const master = async () => {
+            await loop();
+            raf = requestAnimationFrame(master);
+        };
+        raf = requestAnimationFrame(master);
         return () => cancelAnimationFrame(raf);
     }, [
         getConnectionStatus,
+        getAcknowledged,
+        captureFrame,
+        sendFrame,
         getData,
         processHands,
         startHandDrag,
         updateHandDragNormalized,
         endHandDrag,
+        orbitRotate,
+        orbitPan,
+        orbitDolly,
     ]);
-
-    // Throttled send loop (~15 fps)
-    useEffect(() => {
-        const interval = window.setInterval(async () => {
-            if (!getAcknowledged()) return;
-            const frame = await captureFrame();
-            if (frame) sendFrame(frame);
-        }, 66);
-        return () => clearInterval(interval);
-    }, [getAcknowledged, captureFrame, sendFrame]);
 
     // Force rerenders on status changes; data is consumed directly in loop
 
