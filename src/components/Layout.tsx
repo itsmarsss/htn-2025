@@ -6,6 +6,7 @@ import Viewport from './Viewport'
 import { useShortcuts } from '../hooks/useShortcuts'
 import SnapPanel from './SnapPanel'
 import BooleanPanel from './BooleanPanel'
+import ChatPanel from './ChatPanel'
 
 const Global = createGlobalStyle`
   html, body, #root {
@@ -46,6 +47,7 @@ export function Layout() {
       <Inspector />
       <SnapPanel />
       <BooleanPanel />
+      <ChatPanel />
     </Root>
   )
 }
