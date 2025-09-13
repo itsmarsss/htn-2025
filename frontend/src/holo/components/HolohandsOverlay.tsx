@@ -210,12 +210,6 @@ function OverlayInner() {
                 <div
                     style={{ display: "flex", flexDirection: "column", gap: 8 }}
                 >
-                    <div style={{ fontSize: 12, opacity: 0.8 }}>
-                        WS: {status}
-                    </div>
-                    <button onClick={resetCamera}>Reset Camera</button>
-                    <button onClick={createCube}>Insert Cube</button>
-                    <button onClick={createSphere}>Insert Sphere</button>
                 </div>
             </div>
             <canvas
