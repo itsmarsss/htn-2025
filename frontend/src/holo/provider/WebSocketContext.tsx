@@ -13,6 +13,7 @@ interface WebSocketContextType {
     getConnectionStatus: () => SocketStatus;
     getAcknowledged: () => boolean;
     getData: () => object | null;
+    getDataVersion: () => number;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | null>(null);
@@ -23,6 +24,7 @@ export const WebSocketProvider = ({ url, children }: WebSocketProps) => {
     const retryTimeoutRef = useRef<number | null>(null);
     const acknowledgedRef = useRef<boolean>(true);
     const dataRef = useRef<object | null>(null);
+    const dataVersionRef = useRef<number>(0);
     const fallbackCounterRef = useRef<number>(0);
     const RECONNECT_INTERVAL = 3000;
 
@@ -60,13 +62,10 @@ export const WebSocketProvider = ({ url, children }: WebSocketProps) => {
             try {
                 const data = JSON.parse(messageText);
                 if (data) {
-                    // Print the returned information for debugging/inspection
-                    // This can be verbose since messages may stream at high FPS.
-                    // Consider throttling if needed.
-                    // eslint-disable-next-line no-console
-                    console.log("[WebSocket] Received:", data);
+                    // Disable verbose per-message logging for performance
                     dataRef.current = data;
                     acknowledgedRef.current = true;
+                    dataVersionRef.current += 1;
                 }
             } catch {
                 // ignore parse errors
@@ -122,6 +121,7 @@ export const WebSocketProvider = ({ url, children }: WebSocketProps) => {
             getConnectionStatus: () => connectionStatusRef.current,
             getAcknowledged: () => acknowledgedRef.current,
             getData: () => dataRef.current,
+            getDataVersion: () => dataVersionRef.current,
         }),
         []
     );

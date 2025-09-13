@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { WebSocketProvider, useWebSocket } from "../provider/WebSocketContext";
 import {
     VideoStreamProvider,
@@ -10,9 +10,6 @@ import type { InteractionState } from "../objects/InteractionState";
 
 function OverlayInner() {
     const {
-        resetCamera,
-        createCube,
-        createSphere,
         startHandDrag,
         updateHandDragNormalized,
         endHandDrag,
@@ -20,12 +17,19 @@ function OverlayInner() {
         orbitPan,
         orbitDolly,
     } = useViewportActions() as any;
-    const { getConnectionStatus, getData, sendFrame, getAcknowledged } =
-        useWebSocket();
+    const {
+        getConnectionStatus,
+        getData,
+        getDataVersion,
+        sendFrame,
+        getAcknowledged,
+    } = useWebSocket();
     const { videoRef, captureFrame } = useVideoStream();
     const [status, setStatus] = useState("Connecting...");
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
     const fpsRef = useRef<number>(0);
+    const lastVersionRef = useRef<number>(-1);
     const interactionRef = useRef<InteractionState>({
         Left: null,
         Right: null,
@@ -61,18 +65,46 @@ function OverlayInner() {
         return () => window.removeEventListener("resize", resize);
     }, []);
 
+    // Initialize cached 2D context
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        // desynchronized hint can reduce latency on some browsers/GPUs
+        ctxRef.current =
+            (canvas.getContext("2d", {
+                alpha: true,
+                desynchronized: true,
+            } as any) as CanvasRenderingContext2D | null) ?? null;
+    }, []);
+
     // Fast draw loop
     useEffect(() => {
         let raf: number;
         let prevL: { x: number; y: number } | null = null;
         let prevR: { x: number; y: number } | null = null;
         let prevDist: number | null = null;
+        const lastStatusRef = { value: "" } as { value: string };
+        const lastStatusUpdateRef = { value: 0 } as { value: number };
         const draw = () => {
-            setStatus(getConnectionStatus());
-            const data = getData() as any;
+            // Throttle status updates to avoid per-frame React state changes
+            const now = performance.now();
+            if (now - lastStatusUpdateRef.value > 250) {
+                const s = getConnectionStatus();
+                if (s !== lastStatusRef.value) setStatus(s);
+                lastStatusRef.value = s;
+                lastStatusUpdateRef.value = now;
+            }
+            const currVersion = getDataVersion();
+            const hasNewData = currVersion !== lastVersionRef.current;
+            const data = hasNewData ? (getData() as any) : null;
             const canvas = canvasRef.current;
             if (data && data.hands && canvas) {
-                const ctx = canvas.getContext("2d");
+                const ctx =
+                    ctxRef.current ??
+                    (canvas.getContext(
+                        "2d"
+                    ) as CanvasRenderingContext2D | null);
+                if (!ctxRef.current && ctx) ctxRef.current = ctx;
                 if (ctx) {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     const size = data.image_size || { width: 640, height: 360 };
@@ -156,6 +188,7 @@ function OverlayInner() {
                     }
                     if (!anyPinch && prevPinchingRef.current) endHandDrag();
                     prevPinchingRef.current = anyPinch;
+                    lastVersionRef.current = currVersion;
                 }
             }
             raf = requestAnimationFrame(draw);
@@ -210,6 +243,17 @@ function OverlayInner() {
                 <div
                     style={{ display: "flex", flexDirection: "column", gap: 8 }}
                 >
+                    <div
+                        style={{
+                            fontSize: 12,
+                            color: "#bbb",
+                            background: "rgba(0,0,0,0.4)",
+                            padding: "4px 6px",
+                            borderRadius: 4,
+                        }}
+                    >
+                        {status}
+                    </div>
                 </div>
             </div>
             <canvas

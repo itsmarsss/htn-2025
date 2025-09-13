@@ -377,8 +377,49 @@ export function Viewport() {
             orbitPan: (dxN: number, dyN: number) => {
                 if (!orbitRef.current) return;
                 const ctrl = orbitRef.current as any;
-                const panSpeed = 2;
-                ctrl.pan(dxN * panSpeed, -dyN * panSpeed);
+                const camera = ctrl.object as THREE.Camera;
+                const target: THREE.Vector3 =
+                    ctrl.target || new THREE.Vector3();
+                const element: HTMLElement | undefined = ctrl.domElement;
+
+                if (!camera || !element) return;
+
+                // Scale pan deltas similar to OrbitControls' internal logic
+                let moveLeft = 0;
+                let moveUp = 0;
+                if ((camera as any).isPerspectiveCamera) {
+                    const perspective = camera as THREE.PerspectiveCamera;
+                    const targetDistance = perspective.position
+                        .clone()
+                        .sub(target)
+                        .length();
+                    const halfFovY = (perspective.fov * Math.PI) / 180 / 2;
+                    const heightAtDistance =
+                        2 * targetDistance * Math.tan(halfFovY);
+                    // dxN/dyN are normalized deltas (-1..1), scale by scene height
+                    moveLeft = -dxN * heightAtDistance;
+                    moveUp = dyN * heightAtDistance;
+                } else if ((camera as any).isOrthographicCamera) {
+                    const ortho = camera as THREE.OrthographicCamera;
+                    const width = (ortho.right - ortho.left) / ortho.zoom;
+                    const height = (ortho.top - ortho.bottom) / ortho.zoom;
+                    moveLeft = -dxN * width;
+                    moveUp = dyN * height;
+                } else {
+                    // Fallback simple scaling
+                    const fallbackScale = 10;
+                    moveLeft = -dxN * fallbackScale;
+                    moveUp = dyN * fallbackScale;
+                }
+
+                // Use OrbitControls helpers
+                if (
+                    typeof ctrl.panLeft === "function" &&
+                    typeof ctrl.panUp === "function"
+                ) {
+                    ctrl.panLeft(moveLeft, (camera as any).matrix);
+                    ctrl.panUp(moveUp, (camera as any).matrix);
+                }
                 ctrl.update?.();
             },
             orbitDolly: (delta: number) => {
