@@ -24,9 +24,9 @@ function getLlms() {
   if (martianKey) {
     return { provider: 'martian', baseUrl: martianBase, apiKey: martianKey, model: process.env.MARTIAN_MODEL || process.env.LLM_MODEL || 'openai/gpt-4.1-nano' }
   }
-  if (openaiKey) {
-    return { provider: 'openai', baseUrl: openaiBase, apiKey: openaiKey, model: process.env.OPENAI_MODEL || process.env.LLM_MODEL || 'gpt-4o-mini' }
-  }
+//   if (openaiKey) {
+//     return { provider: 'openai', baseUrl: openaiBase, apiKey: openaiKey, model: process.env.OPENAI_MODEL || process.env.LLM_MODEL || 'gpt-4o-mini' }
+//   }
   return null
 }
 
