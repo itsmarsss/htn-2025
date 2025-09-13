@@ -4,6 +4,9 @@ type ViewportActions = {
     resetCamera: () => void;
     createCube: () => void;
     createSphere: () => void;
+    startHandDrag: () => void;
+    updateHandDragNormalized: (u: number, v: number) => void;
+    endHandDrag: () => void;
 };
 
 type RegisteredActions = Partial<ViewportActions>;
@@ -20,6 +23,10 @@ export function ViewportProvider({ children }: { children: React.ReactNode }) {
             resetCamera: () => (actionsRef.current.resetCamera || noop)(),
             createCube: () => (actionsRef.current.createCube || noop)(),
             createSphere: () => (actionsRef.current.createSphere || noop)(),
+            startHandDrag: () => (actionsRef.current.startHandDrag || noop)(),
+            updateHandDragNormalized: (u: number, v: number) =>
+                (actionsRef.current.updateHandDragNormalized || noop)(u, v),
+            endHandDrag: () => (actionsRef.current.endHandDrag || noop)(),
         };
     }, []);
 

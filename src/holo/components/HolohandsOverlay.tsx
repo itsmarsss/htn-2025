@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { WebSocketProvider, useWebSocket } from "../provider/WebSocketContext";
 import {
     VideoStreamProvider,
@@ -9,12 +9,19 @@ import useSkeleton from "../hooks/useSkeleton";
 import type { InteractionState } from "../objects/InteractionState";
 
 function OverlayInner() {
-    const { resetCamera, createCube, createSphere } = useViewportActions();
+    const {
+        resetCamera,
+        createCube,
+        createSphere,
+        startHandDrag,
+        updateHandDragNormalized,
+        endHandDrag,
+    } = useViewportActions();
     const { getConnectionStatus, getData, sendFrame, getAcknowledged } =
         useWebSocket();
     const { videoRef, captureFrame } = useVideoStream();
     const [status, setStatus] = useState("Connecting...");
-    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
     const fpsRef = useRef<number>(0);
     const interactionRef = useRef<InteractionState>({
         Left: null,
@@ -31,49 +38,88 @@ function OverlayInner() {
         },
     });
 
+    // Match canvas to viewport area
+    useEffect(() => {
+        const resize = () => {
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            const topBar = 56;
+            const width = window.innerWidth;
+            const height = Math.max(0, window.innerHeight - topBar);
+            canvas.style.left = "0px";
+            canvas.style.top = `${topBar}px`;
+            canvas.style.width = `${width}px`;
+            canvas.style.height = `${height}px`;
+            canvas.width = width;
+            canvas.height = height;
+        };
+        resize();
+        window.addEventListener("resize", resize);
+        return () => window.removeEventListener("resize", resize);
+    }, []);
+
+    // Fast draw loop
     useEffect(() => {
         let raf: number;
-        const loop = async () => {
+        const draw = () => {
             setStatus(getConnectionStatus());
-            if (getAcknowledged()) {
-                const frame = await captureFrame();
-                if (frame) sendFrame(frame);
-            }
-            // Try to render current hands onto canvas
             const data = getData() as any;
             const canvas = canvasRef.current;
             if (data && data.hands && canvas) {
                 const ctx = canvas.getContext("2d");
                 if (ctx) {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    processHands(data.hands, { width: 640, height: 360 }, ctx);
+                    const size = data.image_size || { width: 640, height: 360 };
+                    processHands(data.hands, size, ctx);
                     const anyPinch = Boolean(
                         (interactionRef.current.Left &&
                             interactionRef.current.Left.isPinching) ||
                             (interactionRef.current.Right &&
                                 interactionRef.current.Right.isPinching)
                     );
-                    if (anyPinch && !prevPinchingRef.current) {
-                        // Simple demo action: insert a cube on pinch edge
-                        createCube();
+                    if (anyPinch && !prevPinchingRef.current) startHandDrag();
+                    const refHand =
+                        interactionRef.current.Right ||
+                        interactionRef.current.Left;
+                    if (refHand && refHand.cursor) {
+                        const u = Math.max(
+                            0,
+                            Math.min(1, refHand.cursor.coords.x / size.width)
+                        );
+                        const v = Math.max(
+                            0,
+                            Math.min(1, refHand.cursor.coords.y / size.height)
+                        );
+                        updateHandDragNormalized(u, v);
                     }
+                    if (!anyPinch && prevPinchingRef.current) endHandDrag();
                     prevPinchingRef.current = anyPinch;
                 }
             }
-            raf = requestAnimationFrame(loop);
+            raf = requestAnimationFrame(draw);
         };
-        raf = requestAnimationFrame(loop);
+        raf = requestAnimationFrame(draw);
         return () => cancelAnimationFrame(raf);
     }, [
         getConnectionStatus,
-        getAcknowledged,
-        captureFrame,
-        sendFrame,
+        getData,
         processHands,
-        createCube,
+        startHandDrag,
+        updateHandDragNormalized,
+        endHandDrag,
     ]);
 
-    const lastData = useMemo(() => getData(), [status]);
+    // Throttled send loop (~15 fps)
+    useEffect(() => {
+        const interval = window.setInterval(async () => {
+            if (!getAcknowledged()) return;
+            const frame = await captureFrame();
+            if (frame) sendFrame(frame);
+        }, 66);
+        return () => clearInterval(interval);
+    }, [getAcknowledged, captureFrame, sendFrame]);
+
+    // Force rerenders on status changes; data is consumed directly in loop
 
     return (
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
@@ -90,7 +136,12 @@ function OverlayInner() {
             >
                 <video
                     ref={videoRef as any}
-                    style={{ width: 160, height: 90, background: "#111" }}
+                    style={{
+                        width: 160,
+                        height: 90,
+                        background: "#111",
+                        transform: "scaleX(-1)",
+                    }}
                     autoPlay
                     muted
                 />
@@ -107,16 +158,11 @@ function OverlayInner() {
             </div>
             <canvas
                 ref={canvasRef}
-                width={640}
-                height={360}
                 style={{
                     position: "absolute",
-                    right: 12,
-                    top: 164,
-                    width: 320,
-                    height: 180,
                     background: "transparent",
-                    zIndex: 9,
+                    zIndex: 5,
+                    pointerEvents: "none",
                 }}
             />
         </div>

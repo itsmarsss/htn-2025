@@ -352,6 +352,29 @@ export function Viewport() {
             },
             createCube: () => addObject("box"),
             createSphere: () => addObject("sphere"),
+            startHandDrag: () => {
+                // begin transform if a selected object exists
+                const selectedId = useEditor.getState().selectedId;
+                if (selectedId) useEditor.getState().beginTransform();
+            },
+            updateHandDragNormalized: (u: number, v: number) => {
+                // map normalized [0,1] overlay coords to world XZ plane around origin
+                const selectedId = useEditor.getState().selectedId;
+                if (!selectedId) return;
+                const objects = useEditor.getState().objects;
+                const obj = objects.find((o) => o.id === selectedId);
+                if (!obj) return;
+                const range = 5; // +/- range in world units
+                const x = (u - 0.5) * 2 * range;
+                const z = (v - 0.5) * 2 * range;
+                useEditor.getState().updateTransform(selectedId, {
+                    position: { x, y: obj.position.y, z },
+                });
+            },
+            endHandDrag: () => {
+                const selectedId = useEditor.getState().selectedId;
+                if (selectedId) useEditor.getState().endTransform();
+            },
         });
     }, [register, addObject]);
 
