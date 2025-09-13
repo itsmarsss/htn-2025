@@ -91,7 +91,7 @@ const Message = styled.div<{ role: 'user' | 'system' }>`
 
 const InputRow = styled.form`
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: auto 1fr auto;
   gap: 8px;
   padding: 8px 8px 10px 8px;
   border-top: 1px solid rgba(255,255,255,0.06);
@@ -111,6 +111,22 @@ const SendBtn = styled.button`
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 10px;
   padding: 8px 12px;
+`
+
+const AttachBtn = styled.label`
+  background: #12141a;
+  color: #e6e9ef;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+`
+
+const HiddenFile = styled.input`
+  display: none;
 `
 
 type ChatMsg = { role: 'user' | 'system'; text: string }
@@ -147,6 +163,7 @@ export function ChatPanel() {
   const [showHistory, setShowHistory] = useState(true)
   const [usingLLM, setUsingLLM] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
+  const [attachedImage, setAttachedImage] = useState<string | null>(null)
 
   const objects = useEditor(s => s.objects)
   const selectedId = useEditor(s => s.selectedId)
@@ -179,14 +196,34 @@ export function ChatPanel() {
     })
   }
 
+  async function uploadImage(dataUrl: string): Promise<string | null> {
+    try {
+      const r = await fetch(`${SERVER_URL}/api/upload-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dataUrl })
+      })
+      if (!r.ok) return null
+      const data = await r.json()
+      return typeof data?.url === 'string' ? `${SERVER_URL}${data.url}` : null
+    } catch {
+      return null
+    }
+  }
+
   async function callLLM(userText: string) {
     try {
       setIsLoading(true)
       const sceneSummary = objects.map(o => `${o.name} [${o.id}] kind=${o.geometry} pos=(${o.position.x.toFixed(2)},${o.position.y.toFixed(2)},${o.position.z.toFixed(2)})`).join('; ')
+      let imageUrl: string | undefined
+      if (attachedImage) {
+        const url = await uploadImage(attachedImage)
+        if (url) imageUrl = url
+      }
       const r = await fetch(`${SERVER_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user: userText, sceneSummary })
+        body: JSON.stringify({ user: userText, sceneSummary, imageUrl })
       })
       const data = await r.json()
       // OpenAI-compatible: choices[0].message
@@ -255,6 +292,44 @@ export function ChatPanel() {
         if (name === 'toggleSnap') { toggleSnap(!!args.enabled); return { executed: true, reply: `Snapping ${args.enabled ? 'enabled' : 'disabled'}` } }
         if (name === 'setSnap') { setSnap({ translateSnap: args.translateSnap, rotateSnap: args.rotateSnap, scaleSnap: args.scaleSnap }); return { executed: true, reply: 'Snap updated' } }
         if (name === 'setMode') { setMode(args.mode); return { executed: true, reply: `Mode: ${args.mode}` } }
+        if (name === 'importModelFromUrl') {
+          const url = String(args.url || '')
+          if (!url) return { executed: false, reply: 'No URL provided' }
+          try {
+            const { GLTFLoader } = await import('three-stdlib') as any
+            const loader = new (GLTFLoader as any)()
+            const gltf: any = await new Promise((resolve, reject) => loader.load(url, resolve, undefined, reject))
+            // Merge all meshes into a single BufferGeometry
+            const THREE = await import('three')
+            const geometries: any[] = []
+            gltf.scene.traverse((child: any) => {
+              if (child.isMesh && child.geometry) {
+                const geom = child.geometry.clone()
+                child.updateWorldMatrix(true, false)
+                geom.applyMatrix4(child.matrixWorld)
+                geometries.push(geom)
+              }
+            })
+            if (geometries.length === 0) return { executed: false, reply: 'No mesh found in model' }
+            const merged = (() => {
+              const g = new (THREE as any).BufferGeometry()
+              const pos: number[] = []
+              for (const gg of geometries) {
+                const arr = gg.getAttribute('position')?.array as Float32Array | undefined
+                if (arr) pos.push(...Array.from(arr))
+              }
+              g.setAttribute('position', new (THREE as any).BufferAttribute(new Float32Array(pos), 3))
+              g.computeVertexNormals()
+              return g
+            })()
+            const { serializeGeometry } = await import('../utils/geometry')
+            const serial = serializeGeometry(merged as any)
+            addObject('custom' as GeometryKind, serial as any)
+            return { executed: true, reply: `Imported model from ${url}` }
+          } catch (e) {
+            return { executed: false, reply: 'Failed to import model' }
+          }
+        }
       }
 
       const text = msg?.content ?? 'Ok'
@@ -263,6 +338,7 @@ export function ChatPanel() {
       return { executed: false, reply: 'LLM call failed' }
     } finally {
       setIsLoading(false)
+      setAttachedImage(null)
     }
   }
 
@@ -375,6 +451,50 @@ export function ChatPanel() {
       sys = 'Duplicated selected object'
       push('system', sys)
       checkpoint(text, sys)
+      return
+    }
+
+    // import model from URL
+    const importMatch = text.match(/^import\s+(https?:[^\s]+)$/i)
+    if (importMatch) {
+      const url = importMatch[1]
+      ;(async () => {
+        try {
+          const { GLTFLoader } = await import('three-stdlib') as any
+          const loader = new (GLTFLoader as any)()
+          const gltf: any = await new Promise((resolve, reject) => loader.load(url, resolve, undefined, reject))
+          const THREE = await import('three')
+          const geometries: any[] = []
+          gltf.scene.traverse((child: any) => {
+            if (child.isMesh && child.geometry) {
+              const geom = child.geometry.clone()
+              child.updateWorldMatrix(true, false)
+              geom.applyMatrix4(child.matrixWorld)
+              geometries.push(geom)
+            }
+          })
+          if (geometries.length === 0) { push('system', 'No mesh found in model'); return }
+          const merged = (() => {
+            const g = new (THREE as any).BufferGeometry()
+            const pos: number[] = []
+            for (const gg of geometries) {
+              const arr = gg.getAttribute('position')?.array as Float32Array | undefined
+              if (arr) pos.push(...Array.from(arr))
+            }
+            g.setAttribute('position', new (THREE as any).BufferAttribute(new Float32Array(pos), 3))
+            g.computeVertexNormals()
+            return g
+          })()
+          const { serializeGeometry } = await import('../utils/geometry')
+          const serial = serializeGeometry(merged as any)
+          addObject('custom' as GeometryKind, serial as any)
+          const msg = `Imported model from ${url}`
+          push('system', msg)
+          checkpoint(text, msg)
+        } catch (e) {
+          push('system', 'Failed to import model')
+        }
+      })()
       return
     }
 
@@ -538,6 +658,7 @@ export function ChatPanel() {
         <div style={{ display: 'flex', gap: 6 }}>
           <Toggle onClick={() => setUsingLLM(v => !v)}>{usingLLM ? 'LLM: On' : 'LLM: Off'}</Toggle>
           <Toggle onClick={() => setShowHistory(v => !v)}>{showHistory ? 'Hide' : 'Show'} History</Toggle>
+          <Toggle onClick={() => useEditor.setState(s => ({ ...s, showChatPanel: false }))}>✕</Toggle>
         </div>
       </Header>
       {showHistory && (
@@ -562,8 +683,31 @@ export function ChatPanel() {
         {messages.map((m, i) => (
           <Message key={i} role={m.role}>{m.text}{isLoading && i === messages.length - 1 && usingLLM ? ' …' : ''}</Message>
         ))}
+        {attachedImage ? (
+          <div style={{ alignSelf: 'flex-end', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, overflow: 'hidden', maxWidth: '70%' }}>
+            <img src={attachedImage} style={{ display: 'block', width: '100%' }} />
+          </div>
+        ) : null}
       </Messages>
       <InputRow onSubmit={onSubmit}>
+        <AttachBtn>
+          📎
+          <HiddenFile
+            type="file"
+            accept="image/png,image/jpeg"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              const reader = new FileReader()
+              reader.onload = () => {
+                const dataUrl = String(reader.result || '')
+                setAttachedImage(dataUrl)
+              }
+              reader.readAsDataURL(file)
+              e.currentTarget.value = ''
+            }}
+          />
+        </AttachBtn>
         <TextInput
           placeholder={selected ? `Command for ${selected.name}…` : 'Command…'}
           value={input}

@@ -8,6 +8,7 @@ export function useShortcuts() {
   const undo = useEditor(s => s.undo)
   const redo = useEditor(s => s.redo)
   const setMode = useEditor(s => s.setMode)
+  const toggleChat = useEditor(s => s.toggleChatPanel)
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -27,8 +28,9 @@ export function useShortcuts() {
       if (e.key.toLowerCase() === '1') { add('box'); return }
       if (e.key.toLowerCase() === '2') { add('sphere'); return }
       if (e.key.toLowerCase() === '3') { add('cylinder'); return }
+      if (e.key.toLowerCase() === 'c') { toggleChat(); return }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [add, del, dup, undo, redo, setMode])
+  }, [add, del, dup, undo, redo, setMode, toggleChat])
 }

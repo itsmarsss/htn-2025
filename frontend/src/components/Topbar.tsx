@@ -36,6 +36,8 @@ export function Topbar() {
   const setMode = useEditor(s => s.setMode)
   const clear = useEditor(s => s.clear)
   const objects = useEditor(s => s.objects)
+  const toggleChatPanel = useEditor(s => s.toggleChatPanel)
+  const showChatPanel = useEditor(s => s.showChatPanel)
 
   async function onExport() {
     const scene = buildSceneFromObjects(objects)
@@ -71,6 +73,7 @@ export function Topbar() {
       <Group>
         <Btn onClick={undo}>Undo</Btn>
         <Btn onClick={redo}>Redo</Btn>
+        <Btn onClick={toggleChatPanel}>{showChatPanel ? 'Hide Chat' : 'Show Chat'}</Btn>
       </Group>
     </Bar>
   )

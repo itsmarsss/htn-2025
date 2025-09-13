@@ -2,3 +2,4 @@ node_modules
 .env
 .venv
 .DS_Store
+.env.local

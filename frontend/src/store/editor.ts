@@ -116,10 +116,14 @@ interface EditorStore extends EditorState {
   redo: () => void;
   clear: () => void;
   setGizmoInteracting: (interacting: boolean) => void;
+  showChatPanel: boolean;
+  setShowChatPanel: (visible: boolean) => void;
+  toggleChatPanel: () => void;
 }
 
 export const useEditor = create<EditorStore>()((set) => ({
   ...initialState,
+  showChatPanel: true,
   addObject: (kind, params) => set((state) => {
     const newObj = createObject(kind, undefined, params)
     const next = produce(state, (draft) => {
@@ -160,6 +164,8 @@ export const useEditor = create<EditorStore>()((set) => ({
   select: (id) => set((state) => ({ ...state, selectedId: id })),
   setMode: (mode) => set((state) => ({ ...state, mode })),
   setGizmoInteracting: (interacting) => set((state) => ({ ...state, isGizmoInteracting: interacting })),
+  setShowChatPanel: (visible) => set((state) => ({ ...state, showChatPanel: visible })),
+  toggleChatPanel: () => set((state) => ({ ...state, showChatPanel: !state.showChatPanel })),
   beginTransform: () => set((state) => {
     if (state.isTransforming) return state
     const next = produce(state, (draft) => {
@@ -230,6 +236,22 @@ export const useEditor = create<EditorStore>()((set) => ({
     })
     return next
   }),
+  addCheckpoint: (meta) => set((state) => produce(state, (draft) => {
+    const id = nanoid(6)
+    const label = meta.label ?? (meta.prompt ? meta.prompt.slice(0, 40) : 'Checkpoint')
+    draft.checkpoints.unshift({ id, label, timestamp: Date.now(), prompt: meta.prompt, response: meta.response, state: snapshot(state) })
+  })),
+  restoreCheckpoint: (id) => set((state) => produce(state, (draft) => {
+    const cp = draft.checkpoints.find(c => c.id === id)
+    if (!cp) return
+    draft.past.push(snapshot(state))
+    draft.future = []
+    draft.objects = JSON.parse(JSON.stringify(cp.state.objects))
+    draft.selectedId = cp.state.selectedId
+  })),
+  deleteCheckpoint: (id) => set((state) => produce(state, (draft) => {
+    draft.checkpoints = draft.checkpoints.filter(c => c.id !== id)
+  })),
   undo: () => set((state) => {
     if (state.past.length === 0) return state
     const prev = state.past[state.past.length - 1]
