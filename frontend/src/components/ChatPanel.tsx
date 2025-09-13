@@ -31,12 +31,21 @@ const Header = styled.div`
 `
 
 const Toggle = styled.button`
-  background: #12141a;
+  background: rgba(0, 0, 0, 0.8);
   color: #e6e9ef;
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 8px;
   padding: 4px 8px;
   font-size: 12px;
+  transition: background-color 0.2s ease;
+  
+  &:hover {
+    background: rgba(30, 30, 30, 0.8);
+  }
+  
+  &:active {
+    background: rgba(50, 50, 50, 0.8);
+  }
 `
 
 const History = styled.div`
@@ -61,12 +70,21 @@ const HistoryItem = styled.div`
 `
 
 const SmallBtn = styled.button`
-  background: #0f1116;
+  background: rgba(0, 0, 0, 0.8);
   color: #e6e9ef;
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 6px;
   padding: 4px 6px;
   font-size: 12px;
+  transition: background-color 0.2s ease;
+  
+  &:hover {
+    background: rgba(30, 30, 30, 0.8);
+  }
+  
+  &:active {
+    background: rgba(50, 50, 50, 0.8);
+  }
 `
 
 const Messages = styled.div`
@@ -106,11 +124,20 @@ const TextInput = styled.input`
 `
 
 const SendBtn = styled.button`
-  background: rgba(18, 20, 26, 0.9);
+  background: rgba(0, 0, 0, 0.8);
   color: #e6e9ef;
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 10px;
   padding: 8px 12px;
+  transition: background-color 0.2s ease;
+  
+  &:hover {
+    background: rgba(30, 30, 30, 0.8);
+  }
+  
+  &:active {
+    background: rgba(50, 50, 50, 0.8);
+  }
 `
 
 type ChatMsg = { role: 'user' | 'system'; text: string }

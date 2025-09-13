@@ -15,8 +15,7 @@ const Global = createGlobalStyle`
   }
   body {
     margin: 0;
-    background: #0b0e14;
-    color: #e6e9ef;
+    background: #;
     overflow: hidden;
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   }
@@ -32,7 +31,7 @@ const Root = styled.div`
 
 const ViewportWrap = styled.div`
     position: absolute;
-    inset: 56px 0 0 0;
+    inset: 48px 0 0 0;
 `;
 
 export function Layout() {

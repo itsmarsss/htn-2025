@@ -399,7 +399,7 @@ export function Viewport() {
                 if (!isTransforming && !isGizmoInteracting) select(null);
             }}
         >
-            <color attach="background" args={[0.08, 0.08, 0.1]} />
+            <color attach="background" args={[0.2, 0.6, 0.9]} />
             <PerspectiveCamera makeDefault position={[4, 3, 6]} fov={50} />
             <OrbitControls
                 ref={orbitRef as React.Ref<OrbitControlsImpl>}
