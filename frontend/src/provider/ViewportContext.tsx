@@ -7,6 +7,9 @@ type ViewportActions = {
     startHandDrag: () => void;
     updateHandDragNormalized: (u: number, v: number) => void;
     endHandDrag: () => void;
+    orbitRotate: (dxN: number, dyN: number) => void;
+    orbitPan: (dxN: number, dyN: number) => void;
+    orbitDolly: (delta: number) => void;
 };
 
 type RegisteredActions = Partial<ViewportActions>;
@@ -27,6 +30,12 @@ export function ViewportProvider({ children }: { children: React.ReactNode }) {
             updateHandDragNormalized: (u: number, v: number) =>
                 (actionsRef.current.updateHandDragNormalized || noop)(u, v),
             endHandDrag: () => (actionsRef.current.endHandDrag || noop)(),
+            orbitRotate: (dxN: number, dyN: number) =>
+                (actionsRef.current.orbitRotate || noop)(dxN, dyN),
+            orbitPan: (dxN: number, dyN: number) =>
+                (actionsRef.current.orbitPan || noop)(dxN, dyN),
+            orbitDolly: (delta: number) =>
+                (actionsRef.current.orbitDolly || noop)(delta),
         };
     }, []);
 

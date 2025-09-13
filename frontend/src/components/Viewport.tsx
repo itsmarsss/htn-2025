@@ -74,8 +74,9 @@ function RenderObject({
         if (!transformRef.current || !isSelected) return;
 
         const controls = transformRef.current as any;
-        const handleDraggingChanged = (event: { value: boolean }) => {
-            const isDragging = event.value;
+        const handleDraggingChanged = (event: any) => {
+            if (!event || typeof event.value !== "boolean") return;
+            const isDragging = event.value as boolean;
             if (orbitRef.current) {
                 orbitRef.current.enabled = !isDragging;
             }
@@ -378,6 +379,28 @@ export function Viewport() {
             endHandDrag: () => {
                 const selectedId = useEditor.getState().selectedId;
                 if (selectedId) useEditor.getState().endTransform();
+            },
+            orbitRotate: (dxN: number, dyN: number) => {
+                if (!orbitRef.current) return;
+                const ctrl = orbitRef.current as any;
+                const rotSpeed = 1.2;
+                ctrl.rotateLeft(-dxN * rotSpeed);
+                ctrl.rotateUp(-dyN * rotSpeed);
+                ctrl.update?.();
+            },
+            orbitPan: (dxN: number, dyN: number) => {
+                if (!orbitRef.current) return;
+                const ctrl = orbitRef.current as any;
+                const panSpeed = 2;
+                ctrl.pan(dxN * panSpeed, -dyN * panSpeed);
+                ctrl.update?.();
+            },
+            orbitDolly: (delta: number) => {
+                if (!orbitRef.current) return;
+                const ctrl = orbitRef.current as any;
+                const zoomFactor = Math.exp(delta * 0.5);
+                ctrl.dollyIn(zoomFactor);
+                ctrl.update?.();
             },
         });
     }, [register, addObject]);

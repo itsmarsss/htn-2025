@@ -16,7 +16,10 @@ function OverlayInner() {
         startHandDrag,
         updateHandDragNormalized,
         endHandDrag,
-    } = useViewportActions();
+        orbitRotate,
+        orbitPan,
+        orbitDolly,
+    } = useViewportActions() as any;
     const { getConnectionStatus, getData, sendFrame, getAcknowledged } =
         useWebSocket();
     const { videoRef, captureFrame } = useVideoStream();
@@ -61,6 +64,9 @@ function OverlayInner() {
     // Fast draw loop
     useEffect(() => {
         let raf: number;
+        let prevL: { x: number; y: number } | null = null;
+        let prevR: { x: number; y: number } | null = null;
+        let prevDist: number | null = null;
         const draw = () => {
             setStatus(getConnectionStatus());
             const data = getData() as any;
@@ -95,6 +101,58 @@ function OverlayInner() {
                             )
                         );
                         updateHandDragNormalized(u, v);
+                    }
+                    // Camera gestures when not pinching
+                    const L = interactionRef.current.Left;
+                    const R = interactionRef.current.Right;
+                    if (!anyPinch) {
+                        if (R?.cursor) {
+                            const dx =
+                                (R.cursor.coords.x -
+                                    (prevR?.x ?? R.cursor.coords.x)) /
+                                size.width;
+                            const dy =
+                                (R.cursor.coords.y -
+                                    (prevR?.y ?? R.cursor.coords.y)) /
+                                size.height;
+                            orbitRotate(dx, dy);
+                            prevR = {
+                                x: R.cursor.coords.x,
+                                y: R.cursor.coords.y,
+                            };
+                        }
+                        if (L?.cursor) {
+                            const dx =
+                                (L.cursor.coords.x -
+                                    (prevL?.x ?? L.cursor.coords.x)) /
+                                size.width;
+                            const dy =
+                                (L.cursor.coords.y -
+                                    (prevL?.y ?? L.cursor.coords.y)) /
+                                size.height;
+                            orbitPan(dx, dy);
+                            prevL = {
+                                x: L.cursor.coords.x,
+                                y: L.cursor.coords.y,
+                            };
+                        }
+                        if (L?.cursor && R?.cursor) {
+                            const currDist = Math.hypot(
+                                R.cursor.coords.x - L.cursor.coords.x,
+                                R.cursor.coords.y - L.cursor.coords.y
+                            );
+                            if (prevDist != null) {
+                                const delta =
+                                    (prevDist - currDist) / size.width;
+                                orbitDolly(delta);
+                            }
+                            prevDist = currDist;
+                        } else {
+                            prevDist = null;
+                        }
+                    } else {
+                        prevL = prevR = null;
+                        prevDist = null;
                     }
                     if (!anyPinch && prevPinchingRef.current) endHandDrag();
                     prevPinchingRef.current = anyPinch;
