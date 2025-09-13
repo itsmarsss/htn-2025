@@ -106,7 +106,11 @@ const initialState: EditorState & { isTransforming?: boolean } = {
   past: [],
   future: [],
   isTransforming: false,
+  checkpoints: [],
 }
+
+// Allow nested partials for transform updates
+type TransformPartial = { position?: Partial<Vector3>; rotation?: Partial<Euler>; scale?: Partial<Vector3> }
 
 interface EditorStore extends EditorState {
   addObject: (kind: GeometryKind, params?: any) => void;
@@ -116,12 +120,15 @@ interface EditorStore extends EditorState {
   setMode: (mode: TransformMode) => void;
   beginTransform: () => void;
   endTransform: () => void;
-  updateTransform: (id: string, partial: Partial<Pick<SceneObject, 'position' | 'rotation' | 'scale'>>) => void;
+  updateTransform: (id: string, partial: TransformPartial) => void;
   updateMaterial: (id: string, partial: Partial<SceneObject['material']>) => void;
   updateGeometry: (id: string, kind: GeometryKind, params?: any) => void;
   toggleSnap: (enabled: boolean) => void;
   setSnap: (partial: Partial<SnapSettings>) => void;
   booleanOp: (op: 'union' | 'subtract' | 'intersect', aId: string, bId: string) => void;
+  addCheckpoint: (meta: { label?: string; prompt?: string; response?: string }) => void;
+  restoreCheckpoint: (id: string) => void;
+  deleteCheckpoint: (id: string) => void;
   undo: () => void;
   redo: () => void;
   clear: () => void;
@@ -263,35 +270,62 @@ export const useEditor = create<EditorStore>()((set, get) => ({
             const newObj = createObject("custom", "Boolean", serial);
             newObj.material = { ...a.material };
 
-    const next = produce(state, (draft) => {
-      draft.past.push(snapshot(state))
-      draft.future = []
-      draft.objects.push(newObj)
-      draft.selectedId = newObj.id
-    })
-    return next
-  }),
-  undo: () => set((state) => {
-    if (state.past.length === 0) return state
-    const prev = state.past[state.past.length - 1]
-    const next = produce(state, (draft) => {
-      draft.future.unshift({ objects: state.objects, selectedId: state.selectedId })
-      draft.past = state.past.slice(0, -1)
-      draft.objects = JSON.parse(JSON.stringify(prev.objects))
-      draft.selectedId = prev.selectedId
-    })
-    return next
-  }),
-  redo: () => set((state) => {
-    if (state.future.length === 0) return state
-    const nextFuture = state.future[0]
-    const next = produce(state, (draft) => {
-      draft.past.push(snapshot(state))
-      draft.future = state.future.slice(1)
-      draft.objects = JSON.parse(JSON.stringify(nextFuture.objects))
-      draft.selectedId = nextFuture.selectedId
-    })
-    return next
-  }),
-  clear: () => set(() => JSON.parse(JSON.stringify(initialState))),
+            const next = produce(state, (draft) => {
+              draft.past.push(snapshot(state))
+              draft.future = []
+              draft.objects.push(newObj)
+              draft.selectedId = newObj.id
+            })
+            return next
+        }),
+    addCheckpoint: (meta) => set((state) => {
+      const cp: Checkpoint = {
+        id: nanoid(8),
+        label: meta.label ?? (meta.prompt ? meta.prompt.slice(0, 60) : 'Checkpoint'),
+        timestamp: Date.now(),
+        prompt: meta.prompt,
+        response: meta.response,
+        state: snapshot(state as unknown as EditorState),
+      }
+      const next = produce(state, (draft: any) => {
+        draft.checkpoints.unshift(cp)
+        if (draft.checkpoints.length > 100) draft.checkpoints = draft.checkpoints.slice(0, 100)
+      })
+      return next
+    }),
+    restoreCheckpoint: (id) => set((state) => {
+      const cp = (state as any).checkpoints.find((c: Checkpoint) => c.id === id)
+      if (!cp) return state
+      const next = produce(state, (draft: any) => {
+        draft.past.push(snapshot(state as unknown as EditorState))
+        draft.future = []
+        draft.objects = JSON.parse(JSON.stringify(cp.state.objects))
+        draft.selectedId = cp.state.selectedId
+      })
+      return next
+    }),
+    deleteCheckpoint: (id) => set((state) => ({ ...state, checkpoints: (state as any).checkpoints.filter((c: Checkpoint) => c.id !== id) })),
+    undo: () => set((state) => {
+      if (state.past.length === 0) return state
+      const prev = state.past[state.past.length - 1]
+      const next = produce(state, (draft) => {
+        draft.future.unshift({ objects: state.objects, selectedId: state.selectedId })
+        draft.past = state.past.slice(0, -1)
+        draft.objects = JSON.parse(JSON.stringify(prev.objects))
+        draft.selectedId = prev.selectedId
+      })
+      return next
+    }),
+    redo: () => set((state) => {
+      if (state.future.length === 0) return state
+      const nextFuture = state.future[0]
+      const next = produce(state, (draft) => {
+        draft.past.push(snapshot(state))
+        draft.future = state.future.slice(1)
+        draft.objects = JSON.parse(JSON.stringify(nextFuture.objects))
+        draft.selectedId = nextFuture.selectedId
+      })
+      return next
+    }),
+    clear: () => set(() => JSON.parse(JSON.stringify(initialState))),
 }))
