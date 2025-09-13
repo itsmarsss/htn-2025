@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { WebSocketProvider, useWebSocket } from "../provider/WebSocketContext";
 import { ThreeDProvider } from "../provider/ThreeDContext";
-import ThreeRenderer from "./ThreeRenderer";
+import Editable3DObject from "./ThreeRenderer";
 import {
     VideoStreamProvider,
     useVideoStream,
@@ -24,6 +24,7 @@ function OverlayInner() {
     const { videoRef, captureFrame } = useVideoStream();
     const [status, setStatus] = useState("Connecting...");
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const viewportRef = useRef<HTMLDivElement>(null);
     const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
     const fpsRef = useRef<number>(0);
     // no longer needed when using old-style loop
@@ -42,24 +43,38 @@ function OverlayInner() {
         },
     });
 
-    // Match canvas to viewport area
+    // Use the Three.js renderer's canvas for hand overlay
     useEffect(() => {
-        const resize = () => {
-            const canvas = canvasRef.current;
-            if (!canvas) return;
-            const topBar = 56;
-            const width = window.innerWidth;
-            const height = Math.max(0, window.innerHeight - topBar);
-            canvas.style.left = "0px";
-            canvas.style.top = `${topBar}px`;
-            canvas.style.width = `${width}px`;
-            canvas.style.height = `${height}px`;
-            canvas.width = width;
-            canvas.height = height;
+        const getRendererCanvas = () => {
+            const rendererCanvas = (interactionRef as any).canvasOverlayRef
+                ?.current;
+            if (rendererCanvas) {
+                canvasRef.current = rendererCanvas;
+                ctxRef.current = rendererCanvas.getContext("2d", {
+                    alpha: true,
+                    desynchronized: true,
+                } as any) as CanvasRenderingContext2D | null;
+
+                // Force initial size sync
+                const mount = rendererCanvas.parentElement;
+                if (mount) {
+                    const { clientWidth, clientHeight } = mount;
+                    rendererCanvas.width = clientWidth;
+                    rendererCanvas.height = clientHeight;
+                    rendererCanvas.style.width = `${clientWidth}px`;
+                    rendererCanvas.style.height = `${clientHeight}px`;
+                }
+            }
         };
-        resize();
-        window.addEventListener("resize", resize);
-        return () => window.removeEventListener("resize", resize);
+
+        // Try immediately and retry if not ready
+        getRendererCanvas();
+        const interval = setInterval(() => {
+            if (!canvasRef.current) getRendererCanvas();
+            else clearInterval(interval);
+        }, 100);
+
+        return () => clearInterval(interval);
     }, []);
 
     // Initialize cached 2D context
@@ -121,7 +136,12 @@ function OverlayInner() {
                     if (!ctxRef.current) ctxRef.current = ctx;
 
                     const data = getData() as any;
-                    if (data && data.hands) {
+                    if (
+                        data &&
+                        data.hands &&
+                        canvas.width > 0 &&
+                        canvas.height > 0
+                    ) {
                         ctx.clearRect(0, 0, canvas.width, canvas.height);
                         const size = {
                             width: canvas.width,
@@ -257,18 +277,26 @@ function OverlayInner() {
     return (
         <div style={{ position: "absolute", inset: 0 }}>
             <div
+                ref={viewportRef}
                 style={{
                     position: "absolute",
-                    inset: 0,
-                    pointerEvents: "none",
+                    left: 0,
+                    right: 0,
+                    top: 56,
+                    bottom: 0,
                 }}
             >
+                <ThreeDProvider>
+                    <Editable3DObject
+                        interactionStateRef={interactionRef as any}
+                    />
+                </ThreeDProvider>
                 <div
                     style={{
                         position: "absolute",
                         right: 12,
-                        top: 64,
-                        zIndex: 10,
+                        top: 8,
+                        zIndex: 20,
                         display: "flex",
                         gap: 8,
                         pointerEvents: "auto",
@@ -305,22 +333,6 @@ function OverlayInner() {
                         </div>
                     </div>
                 </div>
-                <canvas
-                    ref={canvasRef}
-                    style={{
-                        position: "absolute",
-                        background: "transparent",
-                        zIndex: 5,
-                        pointerEvents: "none",
-                    }}
-                />
-            </div>
-            <div style={{ position: "absolute", inset: 56, zIndex: 0 }}>
-                <ThreeDProvider>
-                    <ThreeRenderer
-                        interactionStateRef={interactionRef as any}
-                    />
-                </ThreeDProvider>
             </div>
         </div>
     );
