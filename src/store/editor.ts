@@ -89,7 +89,11 @@ const initialState: EditorState & { isTransforming?: boolean; isGizmoInteracting
   future: [],
   isTransforming: false,
   isGizmoInteracting: false,
+  checkpoints: [],
 }
+
+// Allow nested partials for transform updates
+type TransformPartial = { position?: Partial<Vector3>; rotation?: Partial<Euler>; scale?: Partial<Vector3> }
 
 interface EditorStore extends EditorState {
   addObject: <K extends GeometryKind>(kind: K, params?: GeometryParamsMap[K]) => void;
@@ -99,12 +103,15 @@ interface EditorStore extends EditorState {
   setMode: (mode: TransformMode) => void;
   beginTransform: () => void;
   endTransform: () => void;
-  updateTransform: (id: string, partial: Partial<Pick<SceneObject, 'position' | 'rotation' | 'scale'>>) => void;
+  updateTransform: (id: string, partial: TransformPartial) => void;
   updateMaterial: (id: string, partial: Partial<SceneObject['material']>) => void;
   updateGeometry: <K extends GeometryKind>(id: string, kind: K, params?: GeometryParamsMap[K]) => void;
   toggleSnap: (enabled: boolean) => void;
   setSnap: (partial: Partial<SnapSettings>) => void;
   booleanOp: (op: 'union' | 'subtract' | 'intersect', aId: string, bId: string) => void;
+  addCheckpoint: (meta: { label?: string; prompt?: string; response?: string }) => void;
+  restoreCheckpoint: (id: string) => void;
+  deleteCheckpoint: (id: string) => void;
   undo: () => void;
   redo: () => void;
   clear: () => void;
