@@ -1,12 +1,12 @@
-import type { Coords } from "./coords";
+import { Coords } from "./coords";
 
-export interface InteractionState {
+interface InteractionState {
     Left: InteractionStateHand | null;
     Right: InteractionStateHand | null;
     angleBetween: number;
 }
 
-export interface InteractionStateHand {
+interface InteractionStateHand {
     isHolding: boolean;
     isPinching: boolean;
     cursor: {
@@ -16,15 +16,18 @@ export interface InteractionStateHand {
     depth: number;
 }
 
-export const DEFAULT_INTERACTION_STATE_HAND: InteractionStateHand = {
+const DEFAULT_INTERACTION_STATE_HAND: InteractionStateHand = {
     isHolding: false,
     isPinching: false,
     cursor: null,
     depth: 0,
 };
 
-export const DEFAULT_INTERACTION_STATE: InteractionState = {
+const DEFAULT_INTERACTION_STATE: InteractionState = {
     Left: null,
     Right: null,
     angleBetween: 0,
 };
+
+export type { InteractionState, InteractionStateHand };
+export { DEFAULT_INTERACTION_STATE, DEFAULT_INTERACTION_STATE_HAND };
