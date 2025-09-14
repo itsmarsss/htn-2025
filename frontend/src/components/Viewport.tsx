@@ -329,7 +329,7 @@ function RenderLight({
             position
         );
         switch (light.type) {
-            case "directional":
+            case "directional": {
                 // Calculate direction based on rotation
                 const direction = new THREE.Vector3(0, -1, 0);
                 const euler = new THREE.Euler(
@@ -355,6 +355,7 @@ function RenderLight({
                         />
                     </group>
                 );
+            }
             case "point":
                 return (
                     <group>
@@ -615,7 +616,7 @@ function SceneObjects({
                     editorMode={editorMode}
                 />
             ))}
-            {lights.map((light) => {
+            {editorMode !== "render" && lights.map((light) => {
                 console.log(
                     "Rendering light in SceneObjects:",
                     light.id,
@@ -661,7 +662,7 @@ function Lights() {
 
                 const lightElement = (() => {
                     switch (light.type) {
-                        case "directional":
+                        case "directional": {
                             // Calculate target position based on rotation
                             const targetDirection = new THREE.Vector3(0, -1, 0);
                             const targetEuler = new THREE.Euler(
@@ -690,6 +691,7 @@ function Lights() {
                                     visible={light.visible}
                                 />
                             );
+                        }
                         case "point":
                             return (
                                 <pointLight
@@ -895,7 +897,28 @@ export function Viewport() {
                 enableDamping
                 dampingFactor={0.08}
             />
-            <Lights />
+            {/* Default environment lighting in render mode */}
+            {editorMode === "render" ? (
+                <>
+                    {/* Soft ambient fill */}
+                    <ambientLight intensity={0.4} color={"#ffffff"} />
+                    {/* Main key light */}
+                    <directionalLight
+                        position={[5, 8, 5]}
+                        intensity={1.2}
+                        color={"#ffffff"}
+                        castShadow
+                    />
+                    {/* Rim/back light */}
+                    <directionalLight
+                        position={[-6, 4, -6]}
+                        intensity={0.6}
+                        color={"#dfe7ff"}
+                    />
+                </>
+            ) : (
+                <Lights />
+            )}
             {/* Grid and axes - show in all modes including render */}
             <Grid
                 infiniteGrid
