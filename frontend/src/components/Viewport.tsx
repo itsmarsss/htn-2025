@@ -58,7 +58,7 @@ function RenderObject({
         rotateSnap: number;
         scaleSnap: number;
     };
-    orbitRef: React.MutableRefObject<OrbitControlsImpl | null>;
+    orbitRef: React.RefObject<OrbitControlsImpl | null>;
     beginTransform: () => void;
     endTransform: () => void;
     updateTransform: (
@@ -272,7 +272,7 @@ function RenderObject({
 function SceneObjects({
     orbitRef,
 }: {
-    orbitRef: React.MutableRefObject<OrbitControlsImpl | null>;
+    orbitRef: React.RefObject<OrbitControlsImpl | null>;
 }) {
     const objects = useEditor((s) => s.objects);
     const selectedId = useEditor((s) => s.selectedId);

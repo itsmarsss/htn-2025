@@ -143,9 +143,10 @@ function OverlayInner() {
                         canvas.height > 0
                     ) {
                         ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        // Use original video dimensions since hand landmarks are normalized to that
                         const size = {
-                            width: canvas.width,
-                            height: canvas.height,
+                            width: 640, // Original video width
+                            height: 360, // Original video height
                         };
                         processHands(data.hands, size, ctx);
 

@@ -13,7 +13,7 @@ export default function useSkeleton({
     updateInteractionState,
 }: {
     overlayCanvasRef: React.RefObject<HTMLCanvasElement | null>;
-    fpsRef: React.MutableRefObject<number>;
+    fpsRef: React.RefObject<number>;
     updateInteractionState: (s: any) => void;
 }) {
     // History for holding detection (thumb-index and middle-thumb distances)
@@ -62,9 +62,12 @@ export default function useSkeleton({
         ) => {
             const state: any = { Left: null, Right: null, angleBetween: 0 };
 
+            // Get actual canvas dimensions
             const targetW = overlayCanvasRef.current?.width || imageSize.width;
             const targetH =
                 overlayCanvasRef.current?.height || imageSize.height;
+
+            // Scale from original video resolution to current canvas size
             const scaleX = targetW / imageSize.width;
             const scaleY = targetH / imageSize.height;
 
@@ -165,7 +168,10 @@ export default function useSkeleton({
                     isHolding,
                     isPinching,
                     cursor: {
-                        coords: { x: smoothed.x, y: smoothed.y },
+                        coords: {
+                            x: smoothed.x * scaleX,
+                            y: smoothed.y * scaleY,
+                        },
                         angle: 0,
                     },
                     depth,

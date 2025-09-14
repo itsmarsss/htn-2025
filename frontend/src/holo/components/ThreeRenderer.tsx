@@ -7,7 +7,7 @@ import React from "react";
 import { useThreeD } from "../provider/ThreeDContext";
 
 interface Editable3DObjectProps {
-    interactionStateRef: React.MutableRefObject<InteractionState>;
+    interactionStateRef: React.RefObject<InteractionState>;
 }
 
 function Editable3DObject({
