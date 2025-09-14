@@ -7,8 +7,6 @@ import {
     ConeIcon,
     TorusIcon,
     PlaneIcon,
-    DuplicateIcon,
-    DeleteIcon,
 } from "./ShapeIcons";
 
 const Rail = styled.div`
@@ -47,8 +45,6 @@ const Btn = styled.button`
 
 export function Toolbar() {
     const add = useEditor((s) => s.addObject);
-    const del = useEditor((s) => s.deleteSelected);
-    const dup = useEditor((s) => s.duplicateSelected);
 
     return (
         <Rail>
@@ -69,12 +65,6 @@ export function Toolbar() {
             </Btn>
             <Btn onClick={() => add("plane")} title="Add Plane">
                 <PlaneIcon size={20} />
-            </Btn>
-            <Btn onClick={dup} title="Duplicate Selected">
-                <DuplicateIcon size={20} />
-            </Btn>
-            <Btn onClick={del} title="Delete Selected">
-                <DeleteIcon size={20} />
             </Btn>
         </Rail>
     );
