@@ -333,8 +333,12 @@ function Editable3DObject({
             });
 
             cornerMarkersRef.current.forEach((marker) => {
+                const parentGroup = marker.parent?.parent as THREE.Group | undefined;
+                const isForSelected = parentGroup && parentGroup.name === selectedIdRef.current;
+                const shouldBeVisible = editorModeRef.current === 'edit' && Boolean(isForSelected);
+                marker.visible = shouldBeVisible;
                 const material = marker.material as THREE.MeshBasicMaterial;
-                if (marker === closestMarker && minDistanceMarker < TOLERANCE && (editorModeRef.current === 'edit')) {
+                if (shouldBeVisible && marker === closestMarker && minDistanceMarker < TOLERANCE) {
                     material.color.set(0xffff00);
                 } else {
                     material.color.set(0x0000ff);
@@ -618,6 +622,7 @@ function Editable3DObject({
         raycaster.setFromCamera(mouse, cameraRef.current!);
         // If a marker is hovered, begin dragging it.
         if (hoveredMarkerRef.current) {
+            if (editorModeRef.current !== 'edit') return; // never drag markers in object mode
             // Only permit in edit mode and for the selected object
             const group = hoveredMarkerRef.current.parent?.parent as THREE.Group | undefined;
             if (editorModeRef.current !== 'edit' || !group || group.name !== selectedIdRef.current) {
