@@ -351,14 +351,48 @@ function RenderLight({
                             <sphereGeometry args={[0.1, 8, 8]} />
                             <meshBasicMaterial color={light.props.color} />
                         </mesh>
+                        {/* Multiple concentric spheres to show light falloff */}
                         <mesh>
-                            <sphereGeometry args={[0.3, 16, 16]} />
+                            <sphereGeometry args={[0.2, 16, 16]} />
+                            <meshBasicMaterial
+                                color={light.props.color}
+                                transparent
+                                opacity={0.3}
+                            />
+                        </mesh>
+                        <mesh>
+                            <sphereGeometry args={[0.4, 16, 16]} />
                             <meshBasicMaterial
                                 color={light.props.color}
                                 transparent
                                 opacity={0.1}
                             />
                         </mesh>
+                        {/* Light rays emanating from center */}
+                        <group>
+                            {Array.from({ length: 8 }, (_, i) => {
+                                const angle = (i / 8) * Math.PI * 2;
+                                return (
+                                    <mesh
+                                        key={i}
+                                        position={[
+                                            Math.cos(angle) * 0.15,
+                                            Math.sin(angle) * 0.15,
+                                            0,
+                                        ]}
+                                    >
+                                        <cylinderGeometry
+                                            args={[0.01, 0.01, 0.3, 4]}
+                                        />
+                                        <meshBasicMaterial
+                                            color={light.props.color}
+                                            transparent
+                                            opacity={0.6}
+                                        />
+                                    </mesh>
+                                );
+                            })}
+                        </group>
                     </group>
                 );
             case "spot":
@@ -368,20 +402,107 @@ function RenderLight({
                             <sphereGeometry args={[0.1, 8, 8]} />
                             <meshBasicMaterial color={light.props.color} />
                         </mesh>
-                        <coneGeometry args={[0.2, 0.5, 8]} />
-                        <meshBasicMaterial
-                            color={light.props.color}
-                            transparent
-                            opacity={0.3}
-                        />
+                        {/* Spotlight cone */}
+                        <mesh position={[0, -0.25, 0]}>
+                            <coneGeometry args={[0.3, 0.5, 8]} />
+                            <meshBasicMaterial
+                                color={light.props.color}
+                                transparent
+                                opacity={0.2}
+                                side={2} // DoubleSide
+                            />
+                        </mesh>
+                        {/* Light beam lines */}
+                        <group>
+                            {Array.from({ length: 6 }, (_, i) => {
+                                const angle = (i / 6) * Math.PI * 2;
+                                const radius = 0.25;
+                                return (
+                                    <mesh
+                                        key={i}
+                                        position={[
+                                            Math.cos(angle) * radius,
+                                            -0.5,
+                                            Math.sin(angle) * radius,
+                                        ]}
+                                    >
+                                        <cylinderGeometry
+                                            args={[0.005, 0.005, 0.4, 4]}
+                                        />
+                                        <meshBasicMaterial
+                                            color={light.props.color}
+                                            transparent
+                                            opacity={0.8}
+                                        />
+                                    </mesh>
+                                );
+                            })}
+                        </group>
+                        {/* Base/stand */}
+                        <mesh position={[0, -0.6, 0]}>
+                            <cylinderGeometry args={[0.05, 0.05, 0.1, 8]} />
+                            <meshBasicMaterial color={light.props.color} />
+                        </mesh>
                     </group>
                 );
             case "ambient":
                 return (
-                    <mesh>
-                        <sphereGeometry args={[0.1, 8, 8]} />
-                        <meshBasicMaterial color={light.props.color} />
-                    </mesh>
+                    <group>
+                        <mesh>
+                            <sphereGeometry args={[0.1, 8, 8]} />
+                            <meshBasicMaterial color={light.props.color} />
+                        </mesh>
+                        {/* Soft, pulsing glow effect */}
+                        <mesh>
+                            <sphereGeometry args={[0.2, 16, 16]} />
+                            <meshBasicMaterial
+                                color={light.props.color}
+                                transparent
+                                opacity={0.4}
+                            />
+                        </mesh>
+                        <mesh>
+                            <sphereGeometry args={[0.35, 16, 16]} />
+                            <meshBasicMaterial
+                                color={light.props.color}
+                                transparent
+                                opacity={0.2}
+                            />
+                        </mesh>
+                        <mesh>
+                            <sphereGeometry args={[0.5, 16, 16]} />
+                            <meshBasicMaterial
+                                color={light.props.color}
+                                transparent
+                                opacity={0.1}
+                            />
+                        </mesh>
+                        {/* Floating particles to show ambient nature */}
+                        <group>
+                            {Array.from({ length: 12 }, (_, i) => {
+                                const angle = (i / 12) * Math.PI * 2;
+                                const radius = 0.3 + Math.sin(i) * 0.1;
+                                const height = Math.cos(i * 0.5) * 0.1;
+                                return (
+                                    <mesh
+                                        key={i}
+                                        position={[
+                                            Math.cos(angle) * radius,
+                                            height,
+                                            Math.sin(angle) * radius,
+                                        ]}
+                                    >
+                                        <sphereGeometry args={[0.02, 4, 4]} />
+                                        <meshBasicMaterial
+                                            color={light.props.color}
+                                            transparent
+                                            opacity={0.6}
+                                        />
+                                    </mesh>
+                                );
+                            })}
+                        </group>
+                    </group>
                 );
             default:
                 return null;
