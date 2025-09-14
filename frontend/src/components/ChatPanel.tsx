@@ -2,7 +2,6 @@ import styled from "styled-components";
 import { useMemo, useRef, useState } from "react";
 import { useEditor } from "../store/editor";
 import type { GeometryKind, SceneObject } from "../types";
-import VideoStream from "./VideoStream";
 
 const SERVER_URL =
     (import.meta as any).env?.VITE_SERVER_URL ?? "http://localhost:8787";
@@ -817,7 +816,6 @@ export function ChatPanel() {
                     </Message>
                 ))}
             </Messages>
-            <VideoStream />
             <InputRow onSubmit={onSubmit}>
                 <TextInput
                     placeholder={
