@@ -34,6 +34,8 @@ export function Topbar() {
   const undo = useEditor(s => s.undo)
   const redo = useEditor(s => s.redo)
   const setMode = useEditor(s => s.setMode)
+  const setEditorMode = useEditor(s => s.setEditorMode)
+  const editorMode = useEditor(s => s.editorMode)
   const clear = useEditor(s => s.clear)
   const objects = useEditor(s => s.objects)
 
@@ -62,6 +64,10 @@ export function Topbar() {
         <Btn onClick={() => document.getElementById('import-file')?.click()}>Import</Btn>
         <Btn onClick={onExport}>Export</Btn>
         <HiddenInput id="import-file" type="file" accept=".gltf,.glb,.json" />
+      </Group>
+      <Group>
+        <Btn onClick={() => setEditorMode('object')} style={{ opacity: editorMode === 'object' ? 1 : 0.7 }}>Object</Btn>
+        <Btn onClick={() => setEditorMode('edit')} style={{ opacity: editorMode === 'edit' ? 1 : 0.7 }}>Edit</Btn>
       </Group>
       <Group>
         <Btn onClick={() => setMode('translate')}>Move</Btn>

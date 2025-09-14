@@ -101,8 +101,6 @@ export const ThreeDProvider: React.FC<{ children: React.ReactNode }> = ({
         const gridHelper = new THREE.GridHelper(1000, 1000);
         mainGroupRef.current.add(gridHelper);
 
-        createCube("cube-1", new THREE.Vector3(0, 0, 0), 0x00ff00);
-
         sceneRef.current.add(mainGroupRef.current);
     };
 

@@ -276,14 +276,14 @@ function OverlayInner() {
     // Force rerenders on status changes; data is consumed directly in loop
 
     return (
-        <div style={{ position: "absolute", inset: 0 }}>
+        <div style={{ position: "absolute", left: 0, right: 0, top: 56, bottom: 0 }}>
             <div
                 ref={viewportRef}
                 style={{
                     position: "absolute",
                     left: 0,
                     right: 0,
-                    top: 56,
+                    top: 0,
                     bottom: 0,
                 }}
             >
