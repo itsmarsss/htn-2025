@@ -233,10 +233,12 @@ const ActionsRow = styled.div`
 `;
 
 const ResizeHandle = styled.div`
-    position: absolute;
-    bottom: 0;
+    position: sticky;
+    bottom: -10px;
     left: 0;
     right: 0;
+    margin-top: 10px;
+    margin-bottom: -10px;
     height: 8px;
     cursor: ns-resize;
     background: transparent;
