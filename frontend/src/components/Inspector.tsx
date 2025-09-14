@@ -2,20 +2,6 @@ import styled from "styled-components";
 import { useEditor } from "../store/editor";
 import { DuplicateIcon, DeleteIcon } from "./ShapeIcons";
 
-const Panel = styled.div`
-    position: absolute;
-    top: 56px;
-    bottom: 12px;
-    right: 308px;
-    width: 280px;
-    background: rgba(18, 20, 26, 0.9);
-    color: #e6e9ef;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 12px;
-    overflow: auto;
-`;
-
 const Header = styled.div`
     display: flex;
     align-items: center;
@@ -38,6 +24,25 @@ const CloseButton = styled.button`
     padding: 4px 8px;
     font-size: 12px;
     cursor: pointer;
+`;
+
+const InspectorContainer = styled.div<{ visible: boolean }>`
+    position: absolute;
+    top: 56px;
+    bottom: 12px;
+    right: 308px;
+    width: 280px;
+    background: rgba(18, 20, 26, 0.9);
+    color: #e6e9ef;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 12px;
+    overflow: auto;
+    opacity: ${(props) => (props.visible ? 1 : 0)};
+    visibility: ${(props) => (props.visible ? "visible" : "hidden")};
+    transform: ${(props) =>
+        props.visible ? "translateX(0)" : "translateX(20px)"};
+    transition: all 0.2s ease;
 `;
 
 const Row = styled.div`
@@ -129,18 +134,21 @@ export function Inspector() {
     const deleteSelected = useEditor((s) => s.deleteSelected);
 
     const obj = objects.find((o) => o.id === selectedId);
-    if (!obj) return null;
+    const isVisible = !!obj; // Show inspector when an object is selected
+
+    // Don't render anything if no object is selected
+    if (!obj) {
+        return <InspectorContainer visible={false} />;
+    }
 
     return (
-        <Panel data-inspector-panel>
+        <InspectorContainer visible={isVisible}>
             <Header>
                 <Title>Inspector</Title>
                 <CloseButton
                     onClick={() => {
-                        const panel = document.querySelector(
-                            "[data-inspector-panel]"
-                        ) as HTMLElement;
-                        if (panel) panel.style.display = "none";
+                        // Deselect the current object to hide the inspector
+                        useEditor.getState().select(null);
                     }}
                 >
                     ✕
@@ -318,7 +326,7 @@ export function Inspector() {
                     Delete
                 </ActionButton>
             </ActionsRow>
-        </Panel>
+        </InspectorContainer>
     );
 }
 
