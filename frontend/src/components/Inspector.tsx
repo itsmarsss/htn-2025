@@ -123,6 +123,31 @@ const NameInput = styled.input`
     }
 `;
 
+const ObjectSelector = styled.select`
+    background: #0f1116;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #e6e9ef;
+    border-radius: 8px;
+    padding: 8px 12px;
+    width: 100%;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 16px;
+    cursor: pointer;
+
+    &:focus {
+        outline: none;
+        border-color: rgba(255, 255, 255, 0.2);
+        background: #0f1116;
+    }
+
+    option {
+        background: #0f1116;
+        color: #e6e9ef;
+        padding: 8px;
+    }
+`;
+
 const ActionButton = styled.button`
     background: rgba(18, 20, 26, 0.9);
     color: #e6e9ef;
@@ -189,6 +214,7 @@ export function Inspector() {
     const updateMaterial = useEditor((s) => s.updateMaterial);
     const duplicateSelected = useEditor((s) => s.duplicateSelected);
     const deleteSelected = useEditor((s) => s.deleteSelected);
+    const select = useEditor((s) => s.select);
 
     // Function to update object name
     const updateName = useEditor((s) => s.updateName);
@@ -347,6 +373,20 @@ export function Inspector() {
                 </CloseButton>
             </Header>
 
+            <Label>Object</Label>
+            <ObjectSelector
+                value={selectedId || ""}
+                onChange={(e) => select(e.target.value || null)}
+            >
+                <option value="">Select an object...</option>
+                {objects.map((object) => (
+                    <option key={object.id} value={object.id}>
+                        {object.name} ({object.geometry})
+                    </option>
+                ))}
+            </ObjectSelector>
+
+            <Label>Name</Label>
             <NameInput
                 type="text"
                 value={obj.name}
