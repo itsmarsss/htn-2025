@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { nanoid } from 'nanoid'
 import { produce } from 'immer'
-import type { EditorState, GeometryKind, GeometryParamsMap, HistoryState, SceneObject, SnapSettings, TransformMode, Vector3, Euler } from '../types'
+import type { EditorState, GeometryKind, GeometryParamsMap, HistoryState, SceneObject, SnapSettings, TransformMode, Vector3, Euler, EditorMode } from '../types'
 import * as THREE from 'three'
 import { CSG } from 'three-csg-ts'
 import { serializeGeometry } from '../utils/geometry'
@@ -84,6 +84,7 @@ const initialState: EditorState & { isTransforming?: boolean; isGizmoInteracting
   objects: [],
   selectedId: null,
   mode: 'translate',
+  editorMode: 'object',
   snap: { enableSnapping: false, translateSnap: 0.5, rotateSnap: Math.PI / 12, scaleSnap: 0.1 },
   past: [],
   future: [],
@@ -101,6 +102,7 @@ interface EditorStore extends EditorState {
   duplicateSelected: () => void;
   select: (id: string | null) => void;
   setMode: (mode: TransformMode) => void;
+  setEditorMode: (mode: EditorMode) => void;
   beginTransform: () => void;
   endTransform: () => void;
   updateTransform: (id: string, partial: TransformPartial) => void;
@@ -159,6 +161,7 @@ export const useEditor = create<EditorStore>()((set) => ({
   }),
   select: (id) => set((state) => ({ ...state, selectedId: id })),
   setMode: (mode) => set((state) => ({ ...state, mode })),
+  setEditorMode: (mode) => set((state) => ({ ...state, editorMode: mode })),
   setGizmoInteracting: (interacting) => set((state) => ({ ...state, isGizmoInteracting: interacting })),
   beginTransform: () => set((state) => {
     if (state.isTransforming) return state

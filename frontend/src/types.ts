@@ -64,6 +64,8 @@ export interface HistoryState {
 
 export type TransformMode = 'translate' | 'rotate' | 'scale';
 
+export type EditorMode = 'object' | 'edit';
+
 export interface SnapSettings {
   enableSnapping: boolean;
   translateSnap: number; // units
@@ -84,6 +86,7 @@ export interface EditorState {
   objects: SceneObject[];
   selectedId: string | null;
   mode: TransformMode;
+  editorMode?: EditorMode;
   snap: SnapSettings;
   past: HistoryState[];
   future: HistoryState[];

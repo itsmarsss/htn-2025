@@ -5,6 +5,9 @@ import type { Coords } from "../objects/coords";
 import { DEFAULT_COORDS } from "../objects/coords";
 import React from "react";
 import { useThreeD } from "../provider/ThreeDContext";
+import { useEditor } from "../../store/editor";
+import type { EditorState, SceneObject } from "../../types";
+import { serializeGeometry, deserializeGeometry } from "../../utils/geometry";
 
 interface Editable3DObjectProps {
     interactionStateRef: React.RefObject<InteractionState>;
@@ -75,7 +78,35 @@ function Editable3DObject({
         rendererRef,
         resetCameraRef,
         objectsRef,
+        sceneRef,
+        createCube,
+        createSphere,
+        registerObject,
+        unregisterObject,
+        createShape,
     } = useThreeD();
+
+    const editorObjects = useEditor((s) => s.objects);
+    const selectedId = useEditor((s) => s.selectedId);
+    const select = useEditor((s) => s.select);
+    const beginTransform = useEditor((s) => s.beginTransform);
+    const endTransform = useEditor((s) => s.endTransform);
+    const updateTransform = useEditor((s) => s.updateTransform);
+    const updateGeometryStore = useEditor((s) => s.updateGeometry);
+    const editorMode = useEditor(
+        (s: EditorState & { editorMode?: "object" | "edit" }) =>
+            s.editorMode ?? "object"
+    );
+
+    // Keep latest editorMode and selectedId in refs to avoid stale closures in long-lived handlers/loops
+    const editorModeRef = useRef<"object" | "edit">(editorMode);
+    const selectedIdRef = useRef<string | null>(selectedId);
+    useEffect(() => {
+        editorModeRef.current = editorMode;
+    }, [editorMode]);
+    useEffect(() => {
+        selectedIdRef.current = selectedId;
+    }, [selectedId]);
 
     // ────────────────────────────────────────────────────────────────
     // Set up scene, camera, renderer and add our editable cubes.
@@ -90,7 +121,10 @@ function Editable3DObject({
     // Pass canvas ref to parent for hand overlay and sync sizing
     useEffect(() => {
         if (interactionState.current && canvasOverlayRef.current) {
-            (interactionState as any).canvasOverlayRef = canvasOverlayRef;
+            const overlayRefContainer = interactionState as unknown as {
+                canvasOverlayRef?: React.RefObject<HTMLCanvasElement | null>;
+            };
+            overlayRefContainer.canvasOverlayRef = canvasOverlayRef;
         }
     }, []);
 
@@ -121,7 +155,12 @@ function Editable3DObject({
     useEffect(() => {
         if (!mountRef.current) return;
 
-        setupScene(mountRef as any);
+        setupScene(mountRef as unknown as React.RefObject<HTMLDivElement>);
+
+        // Set scene background to match the dark theme
+        if (sceneRef.current) {
+            sceneRef.current.background = new THREE.Color(0x14161c);
+        }
 
         // IMPORTANT: After set up, update the target camera ref to match the actual camera position.
         if (cameraRef.current) {
@@ -274,7 +313,19 @@ function Editable3DObject({
             let closestMarker: THREE.Mesh | null = null;
             let minDistanceMarker = Infinity;
 
-            cornerMarkersRef.current.forEach((marker) => {
+            // Only consider markers for the selected object in edit mode
+            const candidateMarkers = cornerMarkersRef.current.filter(
+                (marker) => {
+                    const g = marker.parent?.parent as THREE.Group | undefined;
+                    return (
+                        editorModeRef.current === "edit" &&
+                        g &&
+                        g.name === selectedIdRef.current
+                    );
+                }
+            );
+
+            candidateMarkers.forEach((marker) => {
                 const markerWorldPos = new THREE.Vector3();
                 marker.getWorldPosition(markerWorldPos);
                 markerWorldPos.project(cameraRef.current!);
@@ -290,15 +341,30 @@ function Editable3DObject({
             });
 
             cornerMarkersRef.current.forEach((marker) => {
+                const parentGroup = marker.parent?.parent as
+                    | THREE.Group
+                    | undefined;
+                const isForSelected =
+                    parentGroup && parentGroup.name === selectedIdRef.current;
+                const shouldBeVisible =
+                    editorModeRef.current === "edit" && Boolean(isForSelected);
+                marker.visible = shouldBeVisible;
                 const material = marker.material as THREE.MeshBasicMaterial;
-                if (marker === closestMarker && minDistanceMarker < TOLERANCE) {
-                    material.color.set(0xffff00);
+                if (
+                    shouldBeVisible &&
+                    marker === closestMarker &&
+                    minDistanceMarker < TOLERANCE
+                ) {
+                    material.color.set(0xffd700);
                 } else {
-                    material.color.set(0x0000ff);
+                    material.color.set(0x4a9eff);
                 }
             });
             hoveredMarkerRef.current =
-                minDistanceMarker < TOLERANCE ? closestMarker : null;
+                editorModeRef.current === "edit" &&
+                minDistanceMarker < TOLERANCE
+                    ? closestMarker
+                    : null;
 
             const objectRaycaster = new THREE.Raycaster();
             objectRaycaster.setFromCamera(
@@ -342,9 +408,9 @@ function Editable3DObject({
                         const material =
                             child.material as THREE.MeshBasicMaterial;
                         if (object === intersectedObject) {
-                            material.color.set(0xffff00);
+                            material.color.set(0xffd700);
                         } else {
-                            material.color.set(0x00ff00);
+                            material.color.set(0x4a9eff);
                         }
                     }
                 });
@@ -432,6 +498,160 @@ function Editable3DObject({
         };
     }, []);
 
+    // Build primitive geometry for non-editable primitives
+    function buildGeometryForObject(o: SceneObject): THREE.BufferGeometry {
+        switch (o.geometry) {
+            case "box": {
+                const p = o.geometryParams as
+                    | import("../../types").GeometryParamsMap["box"]
+                    | undefined;
+                return new THREE.BoxGeometry(
+                    p?.width ?? 1,
+                    p?.height ?? 1,
+                    p?.depth ?? 1
+                );
+            }
+            case "sphere": {
+                const p = o.geometryParams as
+                    | import("../../types").GeometryParamsMap["sphere"]
+                    | undefined;
+                return new THREE.SphereGeometry(
+                    p?.radius ?? 0.5,
+                    p?.widthSegments ?? 32,
+                    p?.heightSegments ?? 16
+                );
+            }
+            case "cylinder": {
+                const p = o.geometryParams as
+                    | import("../../types").GeometryParamsMap["cylinder"]
+                    | undefined;
+                return new THREE.CylinderGeometry(
+                    p?.radiusTop ?? 0.5,
+                    p?.radiusBottom ?? 0.5,
+                    p?.height ?? 1,
+                    p?.radialSegments ?? 32
+                );
+            }
+            case "cone": {
+                const p = o.geometryParams as
+                    | import("../../types").GeometryParamsMap["cone"]
+                    | undefined;
+                return new THREE.ConeGeometry(
+                    p?.radius ?? 0.5,
+                    p?.height ?? 1,
+                    p?.radialSegments ?? 32
+                );
+            }
+            case "torus": {
+                const p = o.geometryParams as
+                    | import("../../types").GeometryParamsMap["torus"]
+                    | undefined;
+                return new THREE.TorusGeometry(
+                    p?.radius ?? 0.5,
+                    p?.tube ?? 0.2,
+                    p?.radialSegments ?? 16,
+                    p?.tubularSegments ?? 64
+                );
+            }
+            case "plane": {
+                const p = o.geometryParams as
+                    | import("../../types").GeometryParamsMap["plane"]
+                    | undefined;
+                return new THREE.PlaneGeometry(
+                    p?.width ?? 1,
+                    p?.height ?? 1,
+                    p?.widthSegments ?? 1,
+                    p?.heightSegments ?? 1
+                );
+            }
+            default:
+                return new THREE.BoxGeometry(1, 1, 1);
+        }
+    }
+
+    // Sync Zustand store objects to Three.js scene graph
+    useEffect(() => {
+        if (!mainGroupRef.current) return;
+        const existingIds = new Set(Object.keys(objectsRef.current));
+        const storeIds = new Set(editorObjects.map((o) => o.id));
+
+        // Add/update
+        for (const o of editorObjects) {
+            let group = objectsRef.current[o.id];
+            if (!group) {
+                // create editable versions for box/sphere; generic for others
+                if (createCube && o.geometry === "box") {
+                    group = createCube(
+                        o.id,
+                        new THREE.Vector3(
+                            o.position.x,
+                            o.position.y,
+                            o.position.z
+                        ),
+                        0x00ff00
+                    );
+                } else if (createSphere && o.geometry === "sphere") {
+                    const p = o.geometryParams as
+                        | import("../../types").GeometryParamsMap["sphere"]
+                        | undefined;
+                    group = createSphere(
+                        o.id,
+                        new THREE.Vector3(
+                            o.position.x,
+                            o.position.y,
+                            o.position.z
+                        ),
+                        p?.radius ?? 0.5,
+                        0x00ff00
+                    );
+                } else {
+                    // Use generalized shape creation to add control markers
+                    let geom: THREE.BufferGeometry;
+                    if (o.geometry === "custom") {
+                        const data = o.geometryParams as
+                            | import("../../types").GeometryParamsMap["custom"]
+                            | undefined;
+                        geom = data
+                            ? deserializeGeometry(data)
+                            : new THREE.BoxGeometry(1, 1, 1);
+                    } else {
+                        geom = buildGeometryForObject(o);
+                    }
+                    group = createShape(
+                        o.id,
+                        geom,
+                        new THREE.Vector3(
+                            o.position.x,
+                            o.position.y,
+                            o.position.z
+                        ),
+                        0x00ff00
+                    );
+                }
+                group.name = o.id;
+            }
+
+            group.position.set(o.position.x, o.position.y, o.position.z);
+            group.rotation.set(o.rotation.x, o.rotation.y, o.rotation.z);
+            group.scale.set(o.scale.x, o.scale.y, o.scale.z);
+        }
+
+        // Remove deleted
+        for (const id of Array.from(existingIds)) {
+            if (!storeIds.has(id)) {
+                unregisterObject(id);
+            }
+        }
+    }, [
+        editorObjects,
+        mainGroupRef,
+        objectsRef,
+        createCube,
+        createSphere,
+        registerObject,
+        unregisterObject,
+    ]);
+
     useEffect(() => {
         const interval = setInterval(() => {
             interactionStateRef.current = interactionState.current;
@@ -486,6 +706,19 @@ function Editable3DObject({
         raycaster.setFromCamera(mouse, cameraRef.current!);
         // If a marker is hovered, begin dragging it.
         if (hoveredMarkerRef.current) {
+            if (editorModeRef.current !== "edit") return; // never drag markers in object mode
+            // Only permit in edit mode and for the selected object
+            const group = hoveredMarkerRef.current.parent?.parent as
+                | THREE.Group
+                | undefined;
+            if (
+                editorModeRef.current !== "edit" ||
+                !group ||
+                group.name !== selectedIdRef.current
+            ) {
+                if (group && group.name) select(group.name);
+                return;
+            }
             activeMarkerRef.current = hoveredMarkerRef.current;
             const markerWorldPos = new THREE.Vector3();
             activeMarkerRef.current.getWorldPosition(markerWorldPos);
@@ -526,13 +759,19 @@ function Editable3DObject({
 
         // If the intersected object is the cube's face (named "faceMesh") or its child.
         if (hoveredObjectRef.current) {
-            activeObjectRef.current = hoveredObjectRef.current;
-            const objectWorldPos = new THREE.Vector3();
-            hoveredObjectRef.current.getWorldPosition(objectWorldPos);
+            const obj = hoveredObjectRef.current;
+            const name = (obj as { name?: string } | null)?.name;
+            if (name) select(name);
+            // In edit mode, do not initiate object dragging
+            if (editorModeRef.current !== "object") return;
 
-            if (hoveredObjectRef.current.parent) {
+            activeObjectRef.current = obj;
+            const objectWorldPos = new THREE.Vector3();
+            obj.getWorldPosition(objectWorldPos);
+
+            if (obj.parent) {
                 const localPos = objectWorldPos.clone();
-                hoveredObjectRef.current.parent.worldToLocal(localPos);
+                obj.parent.worldToLocal(localPos);
                 targetCubePositionRef.current.copy(localPos);
             } else {
                 targetCubePositionRef.current.copy(objectWorldPos);
@@ -562,6 +801,8 @@ function Editable3DObject({
                 }
             }
 
+            // start transform session
+            beginTransform();
             return;
         }
 
@@ -633,7 +874,11 @@ function Editable3DObject({
         }
 
         // ── DRAGGING A CUBE ──
-        if (activeObjectRef.current && dragPlaneRef.current) {
+        if (
+            editorModeRef.current === "object" &&
+            activeObjectRef.current &&
+            dragPlaneRef.current
+        ) {
             const raycaster = new THREE.Raycaster();
             const normalizedX =
                 source === "mouse"
@@ -708,6 +953,17 @@ function Editable3DObject({
                         parent.worldToLocal(intersectionPoint);
                     }
                     targetCubePositionRef.current.copy(intersectionPoint);
+                }
+            }
+            // Live-sync object position to store while dragging if in object mode
+            if (editorModeRef.current === "object") {
+                const group = activeObjectRef.current as THREE.Group | null;
+                const id = (group as { name?: string } | null)?.name ?? null;
+                if (id) {
+                    const p = targetCubePositionRef.current;
+                    updateTransform(id, {
+                        position: { x: p.x, y: p.y, z: p.z },
+                    });
                 }
             }
             return;
@@ -809,6 +1065,28 @@ function Editable3DObject({
 
     const cursorUp = () => {
         isDraggingRef.current = false;
+        // If object drag active, end transform session
+        if (activeObjectRef.current) endTransform();
+        // If marker drag active in edit mode, commit geometry to store as custom
+        if (activeMarkerRef.current && editorModeRef.current === "edit") {
+            const group = activeMarkerRef.current.parent?.parent as
+                | THREE.Group
+                | undefined;
+            const face = group?.children.find((c) => c.name === "faceMesh") as
+                | THREE.Mesh
+                | undefined;
+            if (group && face) {
+                const id = group.name;
+                const serial = serializeGeometry(
+                    face.geometry as THREE.BufferGeometry
+                );
+                updateGeometryStore(
+                    id,
+                    "custom" as unknown as import("../../types").GeometryKind,
+                    serial as unknown as import("../../types").GeometryParamsMap["custom"]
+                );
+            }
+        }
         activeMarkerRef.current = null;
         activeObjectRef.current = null;
         dragPlaneRef.current = null;
@@ -878,7 +1156,7 @@ function Editable3DObject({
             e.preventDefault();
             if (mainGroupRef.current) {
                 const sensitivity = 0.002;
-                let currentZoom = mainGroupRef.current.scale.x;
+                const currentZoom = mainGroupRef.current.scale.x;
                 let newZoom = currentZoom - e.deltaY * sensitivity;
                 newZoom = Math.max(0.05, Math.min(10, newZoom));
                 // Update both the main group's scale and the target zoom.
