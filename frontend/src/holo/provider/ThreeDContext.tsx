@@ -28,17 +28,17 @@ interface ThreeDContextType {
         faceColor: number
     ) => THREE.Group;
     resetCamera: () => void;
-    objectsRef: React.MutableRefObject<{
+    objectsRef: React.RefObject<{
         [key: string]: THREE.Group<THREE.Object3DEventMap>;
     }>;
     renderScene: () => void;
-    cameraRef: React.MutableRefObject<THREE.PerspectiveCamera | undefined>;
-    sceneRef: React.MutableRefObject<THREE.Scene>;
-    mainGroupRef: React.MutableRefObject<THREE.Group>;
-    rendererRef: React.MutableRefObject<THREE.WebGLRenderer>;
-    cornerMarkersRef: React.MutableRefObject<THREE.Mesh[]>;
-    zoomRef: React.MutableRefObject<number>;
-    resetCameraRef: React.MutableRefObject<boolean>;
+    cameraRef: React.RefObject<THREE.PerspectiveCamera | undefined>;
+    sceneRef: React.RefObject<THREE.Scene>;
+    mainGroupRef: React.RefObject<THREE.Group>;
+    rendererRef: React.RefObject<THREE.WebGLRenderer>;
+    cornerMarkersRef: React.RefObject<THREE.Mesh[]>;
+    zoomRef: React.RefObject<number>;
+    resetCameraRef: React.RefObject<boolean>;
     renameObject: (oldName: string, newName: string) => void;
     updateCubeGeometry: (faceMesh: THREE.Mesh) => void;
     updateSphereGeometry: (sphereMesh: THREE.Mesh) => void;
@@ -59,7 +59,9 @@ export const ThreeDProvider: React.FC<{ children: React.ReactNode }> = ({
             powerPreference: "high-performance",
         })
     );
-    const cameraRef = useRef<THREE.PerspectiveCamera>();
+    const cameraRef = useRef<THREE.PerspectiveCamera>(
+        new THREE.PerspectiveCamera()
+    );
     const sceneRef = useRef<THREE.Scene>(new THREE.Scene());
     const mainGroupRef = useRef<THREE.Group>(new THREE.Group());
     const cornerMarkersRef = useRef<THREE.Mesh[]>([]);
