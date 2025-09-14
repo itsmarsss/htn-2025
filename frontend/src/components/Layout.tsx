@@ -6,6 +6,7 @@ import Inspector from "./Inspector";
 import { useShortcuts } from "../hooks/useShortcuts";
 import BooleanPanel from "./BooleanPanel";
 import HolohandsOverlay from "../holo/components/HolohandsOverlay";
+import Viewport from "./Viewport";
 import ChatPanel from "./ChatPanel";
 import { useEditor } from "../store/editor";
 import VideoStream from "./VideoStream";
@@ -40,13 +41,14 @@ const Root = styled.div`
 export function Layout() {
     useShortcuts();
     const showChat = useEditor((s) => s.showChatPanel);
+    const editorMode = useEditor((s) => s.editorMode);
     return (
         <VideoStreamProvider>
             <Root>
                 <Global />
                 <Topbar />
-                {/* Three.js renderer is mounted inside HolohandsOverlay now */}
-                <HolohandsOverlay />
+                {/* Render different viewport based on editor mode */}
+                {editorMode === "render" ? <Viewport /> : <HolohandsOverlay />}
                 <Toolbar />
                 <Inspector />
                 <BooleanPanel />

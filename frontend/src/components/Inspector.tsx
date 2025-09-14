@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback } from "react";
 import styled from "styled-components";
 import { useEditor } from "../store/editor";
 import { DuplicateIcon, DeleteIcon } from "./ShapeIcons";
+// import type { SceneObject, SceneLight } from "../types";
 
 const Header = styled.div<{ isDragging?: boolean }>`
     display: flex;
@@ -232,10 +233,12 @@ const ActionsRow = styled.div`
 `;
 
 const ResizeHandle = styled.div`
-    position: absolute;
-    bottom: 0;
+    position: sticky;
+    bottom: -10px;
     left: 0;
     right: 0;
+    margin-top: 10px;
+    margin-bottom: -10px;
     height: 8px;
     cursor: ns-resize;
     background: transparent;
@@ -261,10 +264,14 @@ const ResizeHandle = styled.div`
 export function Inspector() {
     const selectedId = useEditor((s) => s.selectedId);
     const objects = useEditor((s) => s.objects);
+    const lights = useEditor((s) => s.lights);
     const updateTransform = useEditor((s) => s.updateTransform);
+    const updateLightTransform = useEditor((s) => s.updateLightTransform);
     const updateMaterial = useEditor((s) => s.updateMaterial);
+    const updateLightProps = useEditor((s) => s.updateLightProps);
     const duplicateSelected = useEditor((s) => s.duplicateSelected);
     const deleteSelected = useEditor((s) => s.deleteSelected);
+    const deleteLight = useEditor((s) => s.deleteLight);
     const select = useEditor((s) => s.select);
     const snap = useEditor((s) => s.snap);
     const toggleSnap = useEditor((s) => s.toggleSnap);
@@ -274,7 +281,8 @@ export function Inspector() {
     const updateName = useEditor((s) => s.updateName);
 
     const obj = objects.find((o) => o.id === selectedId);
-    const isVisible = !!obj; // Show inspector when an object is selected
+    const light = lights.find((l) => l.id === selectedId);
+    const isVisible = !!(obj || light); // Show inspector when an object or light is selected
 
     // State for dragging and resizing
     const [position, setPosition] = useState({
@@ -390,8 +398,8 @@ export function Inspector() {
         }
     }, [isDragging, isResizing, handleMouseMove, handleMouseUp]);
 
-    // Don't render anything if no object is selected
-    if (!obj) {
+    // Don't render anything if no object or light is selected
+    if (!obj && !light) {
         return (
             <InspectorContainer
                 visible={false}
@@ -401,6 +409,9 @@ export function Inspector() {
             />
         );
     }
+
+    const selectedItem = obj || light;
+    const isLight = !!light;
 
     return (
         <InspectorContainer
@@ -427,15 +438,20 @@ export function Inspector() {
                 </CloseButton>
             </Header>
 
-            <Label>Object</Label>
+            <Label>{isLight ? "Light" : "Object"}</Label>
             <ObjectSelector
                 value={selectedId || ""}
                 onChange={(e) => select(e.target.value || null)}
             >
-                <option value="">Select an object...</option>
+                <option value="">Select an item...</option>
                 {objects.map((object) => (
                     <option key={object.id} value={object.id}>
                         {object.name} ({object.geometry})
+                    </option>
+                ))}
+                {lights.map((light) => (
+                    <option key={light.id} value={light.id}>
+                        {light.name} ({light.type})
                     </option>
                 ))}
             </ObjectSelector>
@@ -443,9 +459,24 @@ export function Inspector() {
             <Label>Name</Label>
             <NameInput
                 type="text"
-                value={obj.name}
-                onChange={(e) => updateName(obj.id, e.target.value)}
-                placeholder="Object Name"
+                value={selectedItem?.name || ""}
+                onChange={(e) => {
+                    if (isLight) {
+                        // For lights, we'll need to add updateLightName function
+                        // For now, just update the name in the store directly
+                        useEditor.setState((state) => ({
+                            ...state,
+                            lights: state.lights.map((l) =>
+                                l.id === selectedId
+                                    ? { ...l, name: e.target.value }
+                                    : l
+                            ),
+                        }));
+                    } else {
+                        updateName(selectedItem!.id, e.target.value);
+                    }
+                }}
+                placeholder={isLight ? "Light Name" : "Object Name"}
             />
 
             <Label>Position</Label>
@@ -455,12 +486,15 @@ export function Inspector() {
                     <Input
                         type="number"
                         step={snap.enableSnapping ? snap.translateSnap : 0.1}
-                        value={obj.position.x}
-                        onChange={(e) =>
-                            updateTransform(obj.id, {
+                        value={selectedItem?.position.x || 0}
+                        onChange={(e) => {
+                            const updateFn = isLight
+                                ? updateLightTransform
+                                : updateTransform;
+                            updateFn(selectedItem!.id, {
                                 position: { x: parseFloat(e.target.value) },
-                            })
-                        }
+                            });
+                        }}
                     />
                 </InputGroup>
                 <InputGroup>
@@ -468,12 +502,15 @@ export function Inspector() {
                     <Input
                         type="number"
                         step={snap.enableSnapping ? snap.translateSnap : 0.1}
-                        value={obj.position.y}
-                        onChange={(e) =>
-                            updateTransform(obj.id, {
+                        value={selectedItem?.position.y || 0}
+                        onChange={(e) => {
+                            const updateFn = isLight
+                                ? updateLightTransform
+                                : updateTransform;
+                            updateFn(selectedItem!.id, {
                                 position: { y: parseFloat(e.target.value) },
-                            })
-                        }
+                            });
+                        }}
                     />
                 </InputGroup>
                 <InputGroup>
@@ -481,12 +518,15 @@ export function Inspector() {
                     <Input
                         type="number"
                         step={snap.enableSnapping ? snap.translateSnap : 0.1}
-                        value={obj.position.z}
-                        onChange={(e) =>
-                            updateTransform(obj.id, {
+                        value={selectedItem?.position.z || 0}
+                        onChange={(e) => {
+                            const updateFn = isLight
+                                ? updateLightTransform
+                                : updateTransform;
+                            updateFn(selectedItem!.id, {
                                 position: { z: parseFloat(e.target.value) },
-                            })
-                        }
+                            });
+                        }}
                     />
                 </InputGroup>
             </Row>
@@ -497,12 +537,15 @@ export function Inspector() {
                     <Input
                         type="number"
                         step={snap.enableSnapping ? snap.rotateSnap : 0.05}
-                        value={obj.rotation.x}
-                        onChange={(e) =>
-                            updateTransform(obj.id, {
+                        value={selectedItem?.rotation.x || 0}
+                        onChange={(e) => {
+                            const updateFn = isLight
+                                ? updateLightTransform
+                                : updateTransform;
+                            updateFn(selectedItem!.id, {
                                 rotation: { x: parseFloat(e.target.value) },
-                            })
-                        }
+                            });
+                        }}
                     />
                 </InputGroup>
                 <InputGroup>
@@ -510,12 +553,15 @@ export function Inspector() {
                     <Input
                         type="number"
                         step={snap.enableSnapping ? snap.rotateSnap : 0.05}
-                        value={obj.rotation.y}
-                        onChange={(e) =>
-                            updateTransform(obj.id, {
+                        value={selectedItem?.rotation.y || 0}
+                        onChange={(e) => {
+                            const updateFn = isLight
+                                ? updateLightTransform
+                                : updateTransform;
+                            updateFn(selectedItem!.id, {
                                 rotation: { y: parseFloat(e.target.value) },
-                            })
-                        }
+                            });
+                        }}
                     />
                 </InputGroup>
                 <InputGroup>
@@ -523,88 +569,166 @@ export function Inspector() {
                     <Input
                         type="number"
                         step={snap.enableSnapping ? snap.rotateSnap : 0.05}
-                        value={obj.rotation.z}
-                        onChange={(e) =>
-                            updateTransform(obj.id, {
+                        value={selectedItem?.rotation.z || 0}
+                        onChange={(e) => {
+                            const updateFn = isLight
+                                ? updateLightTransform
+                                : updateTransform;
+                            updateFn(selectedItem!.id, {
                                 rotation: { z: parseFloat(e.target.value) },
-                            })
-                        }
+                            });
+                        }}
                     />
                 </InputGroup>
             </Row>
-            <Label>Scale</Label>
-            <Row>
-                <InputGroup>
-                    <InputLabel axis="x">X</InputLabel>
-                    <Input
-                        type="number"
-                        step={snap.enableSnapping ? snap.scaleSnap : 0.1}
-                        value={obj.scale.x}
-                        onChange={(e) =>
-                            updateTransform(obj.id, {
-                                scale: { x: parseFloat(e.target.value) },
-                            })
-                        }
-                    />
-                </InputGroup>
-                <InputGroup>
-                    <InputLabel axis="y">Y</InputLabel>
-                    <Input
-                        type="number"
-                        step={snap.enableSnapping ? snap.scaleSnap : 0.1}
-                        value={obj.scale.y}
-                        onChange={(e) =>
-                            updateTransform(obj.id, {
-                                scale: { y: parseFloat(e.target.value) },
-                            })
-                        }
-                    />
-                </InputGroup>
-                <InputGroup>
-                    <InputLabel axis="z">Z</InputLabel>
-                    <Input
-                        type="number"
-                        step={snap.enableSnapping ? snap.scaleSnap : 0.1}
-                        value={obj.scale.z}
-                        onChange={(e) =>
-                            updateTransform(obj.id, {
-                                scale: { z: parseFloat(e.target.value) },
-                            })
-                        }
-                    />
-                </InputGroup>
-            </Row>
+            {!isLight && (
+                <>
+                    <Label>Scale</Label>
+                    <Row>
+                        <InputGroup>
+                            <InputLabel axis="x">X</InputLabel>
+                            <Input
+                                type="number"
+                                step={
+                                    snap.enableSnapping ? snap.scaleSnap : 0.1
+                                }
+                                value={obj?.scale.x || 0}
+                                onChange={(e) =>
+                                    updateTransform(obj!.id, {
+                                        scale: {
+                                            x: parseFloat(e.target.value),
+                                        },
+                                    })
+                                }
+                            />
+                        </InputGroup>
+                        <InputGroup>
+                            <InputLabel axis="y">Y</InputLabel>
+                            <Input
+                                type="number"
+                                step={
+                                    snap.enableSnapping ? snap.scaleSnap : 0.1
+                                }
+                                value={obj?.scale.y || 0}
+                                onChange={(e) =>
+                                    updateTransform(obj!.id, {
+                                        scale: {
+                                            y: parseFloat(e.target.value),
+                                        },
+                                    })
+                                }
+                            />
+                        </InputGroup>
+                        <InputGroup>
+                            <InputLabel axis="z">Z</InputLabel>
+                            <Input
+                                type="number"
+                                step={
+                                    snap.enableSnapping ? snap.scaleSnap : 0.1
+                                }
+                                value={obj?.scale.z || 0}
+                                onChange={(e) =>
+                                    updateTransform(obj!.id, {
+                                        scale: {
+                                            z: parseFloat(e.target.value),
+                                        },
+                                    })
+                                }
+                            />
+                        </InputGroup>
+                    </Row>
 
-            <Label>Material</Label>
-            <Row>
-                <Input
-                    type="color"
-                    value={obj.material.color}
-                    onChange={(e) =>
-                        updateMaterial(obj.id, { color: e.target.value })
-                    }
-                />
-                <Input
-                    type="number"
-                    step="0.05"
-                    value={obj.material.metalness}
-                    onChange={(e) =>
-                        updateMaterial(obj.id, {
-                            metalness: parseFloat(e.target.value),
-                        })
-                    }
-                />
-                <Input
-                    type="number"
-                    step="0.05"
-                    value={obj.material.roughness}
-                    onChange={(e) =>
-                        updateMaterial(obj.id, {
-                            roughness: parseFloat(e.target.value),
-                        })
-                    }
-                />
-            </Row>
+                    <Label>Material</Label>
+                    <Row>
+                        <Input
+                            type="color"
+                            value={obj?.material.color || "#ffffff"}
+                            onChange={(e) =>
+                                updateMaterial(obj!.id, {
+                                    color: e.target.value,
+                                })
+                            }
+                        />
+                        <Input
+                            type="number"
+                            step="0.05"
+                            value={obj?.material.metalness || 0}
+                            onChange={(e) =>
+                                updateMaterial(obj!.id, {
+                                    metalness: parseFloat(e.target.value),
+                                })
+                            }
+                        />
+                        <Input
+                            type="number"
+                            step="0.05"
+                            value={obj?.material.roughness || 0}
+                            onChange={(e) =>
+                                updateMaterial(obj!.id, {
+                                    roughness: parseFloat(e.target.value),
+                                })
+                            }
+                        />
+                    </Row>
+                </>
+            )}
+
+            {isLight && (
+                <>
+                    <Label>Light Properties</Label>
+                    <Row>
+                        <Input
+                            type="color"
+                            value={light?.props.color || "#ffffff"}
+                            onChange={(e) =>
+                                updateLightProps(light!.id, {
+                                    color: e.target.value,
+                                })
+                            }
+                        />
+                        <Input
+                            type="number"
+                            step="0.1"
+                            value={light?.props.intensity || 1}
+                            onChange={(e) =>
+                                updateLightProps(light!.id, {
+                                    intensity: parseFloat(e.target.value),
+                                })
+                            }
+                        />
+                    </Row>
+                    {light?.type === "point" && (
+                        <>
+                            <Label>Distance</Label>
+                            <Input
+                                type="number"
+                                step="0.1"
+                                value={light?.props.distance || 0}
+                                onChange={(e) =>
+                                    updateLightProps(light!.id, {
+                                        distance: parseFloat(e.target.value),
+                                    })
+                                }
+                            />
+                        </>
+                    )}
+                    {light?.type === "spot" && (
+                        <>
+                            <Label>Angle</Label>
+                            <Input
+                                type="number"
+                                step="0.1"
+                                value={light?.props.angle || Math.PI / 3}
+                                onChange={(e) =>
+                                    updateLightProps(light!.id, {
+                                        angle: parseFloat(e.target.value),
+                                    })
+                                }
+                            />
+                        </>
+                    )}
+                </>
+            )}
 
             <Label>Snap Settings</Label>
             <SnapCheckbox>
@@ -654,14 +778,21 @@ export function Inspector() {
             </SnapRow>
 
             <ActionsRow>
+                {!isLight && (
+                    <ActionButton
+                        onClick={duplicateSelected}
+                        title="Duplicate Object"
+                    >
+                        <DuplicateIcon size={14} />
+                        Duplicate
+                    </ActionButton>
+                )}
                 <ActionButton
-                    onClick={duplicateSelected}
-                    title="Duplicate Object"
+                    onClick={
+                        isLight ? () => deleteLight(light!.id) : deleteSelected
+                    }
+                    title={isLight ? "Delete Light" : "Delete Object"}
                 >
-                    <DuplicateIcon size={14} />
-                    Duplicate
-                </ActionButton>
-                <ActionButton onClick={deleteSelected} title="Delete Object">
                     <DeleteIcon size={14} />
                     Delete
                 </ActionButton>

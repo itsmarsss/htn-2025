@@ -1,6 +1,11 @@
 import styled from "styled-components";
 import { useEditor } from "../store/editor";
-import { buildSceneFromObjects, exportSceneToGLB, exportSceneToGLTF, importObjectsFromGLTF } from "../utils/io";
+import {
+    buildSceneFromObjects,
+    exportSceneToGLB,
+    exportSceneToGLTF,
+    importObjectsFromGLTF,
+} from "../utils/io";
 import { saveScene, loadScene } from "../utils/local";
 import { sceneToJSON, jsonToScene } from "../utils/scene";
 import { saveAs } from "file-saver";
@@ -15,8 +20,8 @@ const Bar = styled.div`
     background: rgba(20, 22, 28, 0.9);
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     backdrop-filter: blur(10px);
-  position: relative;
-  z-index: 100;
+    position: relative;
+    z-index: 100;
 `;
 
 const Group = styled.div`
@@ -87,7 +92,9 @@ export function Topbar() {
 
     function onLoad() {
         // Prefer file picker to visibly do something; fallback to localStorage if no file chosen
-        const input = document.getElementById("load-file") as HTMLInputElement | null;
+        const input = document.getElementById(
+            "load-file"
+        ) as HTMLInputElement | null;
         if (input) input.click();
         else applyLoaded(loadScene());
     }
@@ -112,7 +119,11 @@ export function Topbar() {
                 <Btn onClick={() => clear()}>New</Btn>
                 <Btn onClick={onSave}>Save</Btn>
                 <Btn onClick={onLoad}>Load</Btn>
-                <Btn onClick={() => document.getElementById("import-file")?.click()}>
+                <Btn
+                    onClick={() =>
+                        document.getElementById("import-file")?.click()
+                    }
+                >
                     Import
                 </Btn>
                 <Btn onClick={onExport}>Export</Btn>
@@ -120,29 +131,36 @@ export function Topbar() {
                     id="import-file"
                     type="file"
                     accept=".gltf,.glb,.json"
-                    onChange={async (e: React.ChangeEvent<HTMLInputElement>) => {
+                    onChange={async (
+                        e: React.ChangeEvent<HTMLInputElement>
+                    ) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
-                        const ext = file.name.toLowerCase().split('.').pop() || '';
+                        const ext =
+                            file.name.toLowerCase().split(".").pop() || "";
                         try {
-                            if (ext === 'gltf' || ext === 'glb') {
-                                const imported = await importObjectsFromGLTF(file);
+                            if (ext === "gltf" || ext === "glb") {
+                                const imported = await importObjectsFromGLTF(
+                                    file
+                                );
                                 if (imported.length > 0) {
                                     useEditor.setState((s) => ({
                                         ...s,
                                         objects: [...s.objects, ...imported],
-                                        selectedId: imported[imported.length - 1]?.id ?? s.selectedId,
+                                        selectedId:
+                                            imported[imported.length - 1]?.id ??
+                                            s.selectedId,
                                         past: [],
                                         future: [],
                                     }));
                                 }
-                            } else if (ext === 'json') {
+                            } else if (ext === "json") {
                                 const text = await file.text();
                                 const decoded = jsonToScene(text);
                                 applyLoaded(decoded);
                             }
                         } finally {
-                            e.target.value = '';
+                            e.target.value = "";
                         }
                     }}
                 />
@@ -166,14 +184,29 @@ export function Topbar() {
                 >
                     Edit
                 </Btn>
+                <Btn
+                    onClick={() => setEditorMode("render")}
+                    style={{ opacity: editorMode === "render" ? 1 : 0.7 }}
+                >
+                    Render
+                </Btn>
             </Group>
             <Group>
                 <Btn onClick={undo}>Undo</Btn>
                 <Btn onClick={redo}>Redo</Btn>
-              <Btn onClick={() => {
-          try { (useEditor as any).setState((s: any) => ({ ...s, showChatPanel: true })); } catch {}
-        }}>💬</Btn>
-      </Group>
+                <Btn
+                    onClick={() => {
+                        try {
+                            (useEditor as any).setState((s: any) => ({
+                                ...s,
+                                showChatPanel: true,
+                            }));
+                        } catch {}
+                    }}
+                >
+                    💬
+                </Btn>
+            </Group>
         </Bar>
     );
 }

@@ -93,6 +93,7 @@ function Editable3DObject({
     const endTransform = useEditor((s) => s.endTransform);
     const updateTransform = useEditor((s) => s.updateTransform);
     const updateGeometryStore = useEditor((s) => s.updateGeometry);
+    const snap = useEditor((s) => s.snap);
     const editorMode = useEditor(
         (s: EditorState & { editorMode?: "object" | "edit" }) =>
             s.editorMode ?? "object"
@@ -101,12 +102,26 @@ function Editable3DObject({
     // Keep latest editorMode and selectedId in refs to avoid stale closures in long-lived handlers/loops
     const editorModeRef = useRef<"object" | "edit">(editorMode);
     const selectedIdRef = useRef<string | null>(selectedId);
+    const snapRef = useRef(snap);
     useEffect(() => {
         editorModeRef.current = editorMode;
     }, [editorMode]);
     useEffect(() => {
         selectedIdRef.current = selectedId;
     }, [selectedId]);
+    useEffect(() => {
+        snapRef.current = snap;
+    }, [snap]);
+
+    // Helper function to snap values
+    const snapValue = (
+        value: number,
+        snapValue: number,
+        enabled: boolean
+    ): number => {
+        if (!enabled) return value;
+        return Math.round(value / snapValue) * snapValue;
+    };
 
     // ────────────────────────────────────────────────────────────────
     // Set up scene, camera, renderer and add our editable cubes.
@@ -928,6 +943,25 @@ function Editable3DObject({
                         if (parent) {
                             parent.worldToLocal(intersectionPoint);
                         }
+                        // Apply snapping to the visual position as well
+                        const snapSettings = snapRef.current;
+                        if (snapSettings.enableSnapping) {
+                            intersectionPoint.x = snapValue(
+                                intersectionPoint.x,
+                                snapSettings.translateSnap,
+                                true
+                            );
+                            intersectionPoint.y = snapValue(
+                                intersectionPoint.y,
+                                snapSettings.translateSnap,
+                                true
+                            );
+                            intersectionPoint.z = snapValue(
+                                intersectionPoint.z,
+                                snapSettings.translateSnap,
+                                true
+                            );
+                        }
                         targetCubePositionRef.current.copy(intersectionPoint);
                     }
                 }
@@ -944,6 +978,25 @@ function Editable3DObject({
                     if (parent) {
                         parent.worldToLocal(intersectionPoint);
                     }
+                    // Apply snapping to the visual position as well
+                    const snapSettings = snapRef.current;
+                    if (snapSettings.enableSnapping) {
+                        intersectionPoint.x = snapValue(
+                            intersectionPoint.x,
+                            snapSettings.translateSnap,
+                            true
+                        );
+                        intersectionPoint.y = snapValue(
+                            intersectionPoint.y,
+                            snapSettings.translateSnap,
+                            true
+                        );
+                        intersectionPoint.z = snapValue(
+                            intersectionPoint.z,
+                            snapSettings.translateSnap,
+                            true
+                        );
+                    }
                     targetCubePositionRef.current.copy(intersectionPoint);
                 }
             }
@@ -953,8 +1006,29 @@ function Editable3DObject({
                 const id = (group as { name?: string } | null)?.name ?? null;
                 if (id) {
                     const p = targetCubePositionRef.current;
+                    const snapSettings = snapRef.current;
+
+                    // Apply snapping to position if enabled
+                    const snappedPosition = {
+                        x: snapValue(
+                            p.x,
+                            snapSettings.translateSnap,
+                            snapSettings.enableSnapping
+                        ),
+                        y: snapValue(
+                            p.y,
+                            snapSettings.translateSnap,
+                            snapSettings.enableSnapping
+                        ),
+                        z: snapValue(
+                            p.z,
+                            snapSettings.translateSnap,
+                            snapSettings.enableSnapping
+                        ),
+                    };
+
                     updateTransform(id, {
-                        position: { x: p.x, y: p.y, z: p.z },
+                        position: snappedPosition,
                     });
                 }
             }
