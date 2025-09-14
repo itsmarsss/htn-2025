@@ -450,16 +450,21 @@ export const useEditor = create<EditorStore>()((set) => ({
             })
         ),
     restoreCheckpoint: (id) =>
-        set((state) =>
-            produce(state, (draft) => {
-                const cp = draft.checkpoints.find((c) => c.id === id);
-                if (!cp) return;
+        set((state) => {
+            const cp = state.checkpoints.find((c) => c.id === id);
+            if (!cp) {
+                console.error("Checkpoint not found:", id);
+                return state;
+            }
+
+            const next = produce(state, (draft) => {
                 draft.past.push(snapshot(state));
                 draft.future = [];
                 draft.objects = JSON.parse(JSON.stringify(cp.state.objects));
                 draft.selectedId = cp.state.selectedId;
-            })
-        ),
+            });
+            return next;
+        }),
     deleteCheckpoint: (id) =>
         set((state) =>
             produce(state, (draft) => {
