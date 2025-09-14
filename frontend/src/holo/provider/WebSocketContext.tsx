@@ -20,7 +20,6 @@ const WebSocketContext = createContext<WebSocketContextType | null>(null);
 
 export const WebSocketProvider = ({ url, children }: WebSocketProps) => {
     const wsRef = useRef<WebSocket | null>(null);
-    const connectionStatusRef = useRef<SocketStatus>("Connecting...");
     const retryTimeoutRef = useRef<number | null>(null);
     const acknowledgedRef = useRef<boolean>(true);
     const dataRef = useRef<object | null>(null);
@@ -29,12 +28,10 @@ export const WebSocketProvider = ({ url, children }: WebSocketProps) => {
     const RECONNECT_INTERVAL = 3000;
 
     const connectWebSocket = () => {
-        connectionStatusRef.current = "Connecting...";
         const ws = new WebSocket(url);
         wsRef.current = ws;
 
         ws.onopen = () => {
-            connectionStatusRef.current = "Connected";
             if (retryTimeoutRef.current) {
                 clearInterval(retryTimeoutRef.current);
                 retryTimeoutRef.current = null;
@@ -42,12 +39,10 @@ export const WebSocketProvider = ({ url, children }: WebSocketProps) => {
         };
 
         ws.onclose = () => {
-            connectionStatusRef.current = "Disconnected";
             wsRef.current = null;
         };
 
         ws.onerror = () => {
-            connectionStatusRef.current = "Error";
             ws.close();
         };
 
@@ -81,7 +76,6 @@ export const WebSocketProvider = ({ url, children }: WebSocketProps) => {
                 clearInterval(timeout);
                 return;
             }
-            connectionStatusRef.current = "Connecting...";
             if (!wsRef.current) connectWebSocket();
         }, RECONNECT_INTERVAL);
         retryTimeoutRef.current = timeout;
@@ -118,7 +112,6 @@ export const WebSocketProvider = ({ url, children }: WebSocketProps) => {
         () => ({
             sendFrame,
             getWebSocket: () => wsRef.current,
-            getConnectionStatus: () => connectionStatusRef.current,
             getAcknowledged: () => acknowledgedRef.current,
             getData: () => dataRef.current,
             getDataVersion: () => dataVersionRef.current,

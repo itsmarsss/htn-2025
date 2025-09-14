@@ -8,6 +8,7 @@ import SnapPanel from "./SnapPanel";
 import BooleanPanel from "./BooleanPanel";
 import HolohandsOverlay from "../holo/components/HolohandsOverlay";
 import ChatPanel from "./ChatPanel";
+import { useEditor } from "../store/editor";
 import VideoStream from "./VideoStream";
 import { VideoStreamProvider } from "../holo/provider/VideoStreamContext";
 
@@ -39,6 +40,7 @@ const Root = styled.div`
 
 export function Layout() {
     useShortcuts();
+    const showChat = useEditor(s => s.showChatPanel)
     return (
         <VideoStreamProvider>
             <Root>
@@ -50,7 +52,7 @@ export function Layout() {
                 <Inspector />
                 <SnapPanel />
                 <BooleanPanel />
-                <ChatPanel />
+                {showChat ? <ChatPanel /> : null}
                 <VideoStream />
             </Root>
         </VideoStreamProvider>
