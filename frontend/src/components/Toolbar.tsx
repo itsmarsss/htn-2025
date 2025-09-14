@@ -50,44 +50,63 @@ const Btn = styled.button`
 export function Toolbar() {
     const add = useEditor((s) => s.addObject);
     const addLight = useEditor((s) => s.addLight);
+    const editorMode = useEditor((s) => s.editorMode);
 
     return (
         <Rail>
-            <Btn onClick={() => add("box")} title="Add Box">
-                <BoxIcon size={20} />
-            </Btn>
-            <Btn onClick={() => add("sphere")} title="Add Sphere">
-                <SphereIcon size={20} />
-            </Btn>
-            <Btn onClick={() => add("cylinder")} title="Add Cylinder">
-                <CylinderIcon size={20} />
-            </Btn>
-            <Btn onClick={() => add("cone")} title="Add Cone">
-                <ConeIcon size={20} />
-            </Btn>
-            <Btn onClick={() => add("torus")} title="Add Torus">
-                <TorusIcon size={20} />
-            </Btn>
-            <Btn onClick={() => add("plane")} title="Add Plane">
-                <PlaneIcon size={20} />
-            </Btn>
+            {/* Shape buttons - only show in object and edit modes */}
+            {editorMode !== "render" && (
+                <>
+                    <Btn onClick={() => add("box")} title="Add Box">
+                        <BoxIcon size={20} />
+                    </Btn>
+                    <Btn onClick={() => add("sphere")} title="Add Sphere">
+                        <SphereIcon size={20} />
+                    </Btn>
+                    <Btn onClick={() => add("cylinder")} title="Add Cylinder">
+                        <CylinderIcon size={20} />
+                    </Btn>
+                    <Btn onClick={() => add("cone")} title="Add Cone">
+                        <ConeIcon size={20} />
+                    </Btn>
+                    <Btn onClick={() => add("torus")} title="Add Torus">
+                        <TorusIcon size={20} />
+                    </Btn>
+                    <Btn onClick={() => add("plane")} title="Add Plane">
+                        <PlaneIcon size={20} />
+                    </Btn>
+                </>
+            )}
 
-            {/* Light buttons */}
-            <Btn
-                onClick={() => addLight("directional")}
-                title="Add Directional Light"
-            >
-                <DirectionalLightIcon size={20} />
-            </Btn>
-            <Btn onClick={() => addLight("point")} title="Add Point Light">
-                <PointLightIcon size={20} />
-            </Btn>
-            <Btn onClick={() => addLight("spot")} title="Add Spot Light">
-                <SpotLightIcon size={20} />
-            </Btn>
-            <Btn onClick={() => addLight("ambient")} title="Add Ambient Light">
-                <AmbientLightIcon size={20} />
-            </Btn>
+            {/* Light buttons - only show in render mode */}
+            {editorMode === "render" && (
+                <>
+                    <Btn
+                        onClick={() => addLight("directional")}
+                        title="Add Directional Light"
+                    >
+                        <DirectionalLightIcon size={20} />
+                    </Btn>
+                    <Btn
+                        onClick={() => addLight("point")}
+                        title="Add Point Light"
+                    >
+                        <PointLightIcon size={20} />
+                    </Btn>
+                    <Btn
+                        onClick={() => addLight("spot")}
+                        title="Add Spot Light"
+                    >
+                        <SpotLightIcon size={20} />
+                    </Btn>
+                    <Btn
+                        onClick={() => addLight("ambient")}
+                        title="Add Ambient Light"
+                    >
+                        <AmbientLightIcon size={20} />
+                    </Btn>
+                </>
+            )}
         </Rail>
     );
 }
