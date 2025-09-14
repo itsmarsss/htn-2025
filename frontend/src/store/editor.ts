@@ -169,6 +169,7 @@ interface EditorStore extends EditorState {
         id: string,
         partial: Partial<SceneObject["material"]>
     ) => void;
+    updateName: (id: string, name: string) => void;
     updateGeometry: <K extends GeometryKind>(
         id: string,
         kind: K,
@@ -290,6 +291,13 @@ export const useEditor = create<EditorStore>()((set) => ({
             produce(state, (draft) => {
                 const obj = draft.objects.find((o) => o.id === id);
                 if (obj) obj.material = { ...obj.material, ...partial };
+            })
+        ),
+    updateName: (id, name) =>
+        set((state) =>
+            produce(state, (draft) => {
+                const obj = draft.objects.find((o) => o.id === id);
+                if (obj) obj.name = name;
             })
         ),
     updateGeometry: <K extends GeometryKind>(

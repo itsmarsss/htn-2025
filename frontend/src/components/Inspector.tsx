@@ -115,7 +115,7 @@ const NameInput = styled.input`
     font-size: 14px;
     font-weight: 500;
     margin-bottom: 16px;
-    
+
     &:focus {
         outline: none;
         border-color: rgba(255, 255, 255, 0.2);
@@ -189,7 +189,7 @@ export function Inspector() {
     const updateMaterial = useEditor((s) => s.updateMaterial);
     const duplicateSelected = useEditor((s) => s.duplicateSelected);
     const deleteSelected = useEditor((s) => s.deleteSelected);
-    
+
     // Function to update object name
     const updateName = useEditor((s) => s.updateName);
 
@@ -204,24 +204,29 @@ export function Inspector() {
     });
     const [isDragging, setIsDragging] = useState(false);
     const [isResizing, setIsResizing] = useState(false);
-    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0, top: 0, left: 0 });
     const [resizeStart, setResizeStart] = useState({ y: 0, height: 0 });
 
     const containerRef = useRef<HTMLDivElement>(null);
 
     // Drag handlers
-    const handleDragStart = useCallback((e: React.MouseEvent) => {
-        if (
-            e.target === e.currentTarget ||
-            (e.target as HTMLElement).closest("[data-drag-handle]")
-        ) {
-            setIsDragging(true);
-            setDragStart({
-                x: e.clientX,
-                y: e.clientY,
-            });
-        }
-    }, []);
+    const handleDragStart = useCallback(
+        (e: React.MouseEvent) => {
+            if (
+                e.target === e.currentTarget ||
+                (e.target as HTMLElement).closest("[data-drag-handle]")
+            ) {
+                setIsDragging(true);
+                setDragStart({
+                    x: e.clientX,
+                    y: e.clientY,
+                    top: position.top,
+                    left: position.left,
+                });
+            }
+        },
+        [position.top, position.left]
+    );
 
     const handleResizeStart = useCallback(
         (e: React.MouseEvent) => {
@@ -242,25 +247,23 @@ export function Inspector() {
                 const deltaX = e.clientX - dragStart.x;
                 const deltaY = e.clientY - dragStart.y;
 
-                setPosition((prev) => ({
+                setPosition({
                     top: Math.max(
                         56,
                         Math.min(
-                            window.innerHeight - prev.height - 12,
-                            prev.top + deltaY
+                            window.innerHeight - position.height - 12,
+                            dragStart.top + deltaY
                         )
                     ),
                     left: Math.max(
                         12,
                         Math.min(
                             window.innerWidth - 280 - 12,
-                            prev.left + deltaX
+                            dragStart.left + deltaX
                         )
                     ),
-                    height: prev.height,
-                }));
-
-                setDragStart({ x: e.clientX, y: e.clientY });
+                    height: position.height,
+                });
             }
 
             if (isResizing) {
@@ -269,7 +272,7 @@ export function Inspector() {
                     200,
                     Math.min(
                         window.innerHeight - position.top - 12,
-                        resizeStart.height + deltaY // Fixed: was -deltaY, now +deltaY
+                        resizeStart.height + deltaY
                     )
                 );
 
@@ -279,7 +282,14 @@ export function Inspector() {
                 }));
             }
         },
-        [isDragging, isResizing, dragStart, resizeStart, position.top]
+        [
+            isDragging,
+            isResizing,
+            dragStart,
+            resizeStart,
+            position.top,
+            position.height,
+        ]
     );
 
     // Mouse up handler
@@ -336,6 +346,13 @@ export function Inspector() {
                     ✕
                 </CloseButton>
             </Header>
+
+            <NameInput
+                type="text"
+                value={obj.name}
+                onChange={(e) => updateName(obj.id, e.target.value)}
+                placeholder="Object Name"
+            />
 
             <Label>Position</Label>
             <Row>
