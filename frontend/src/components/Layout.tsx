@@ -4,7 +4,6 @@ import Toolbar from "./Toolbar";
 import Inspector from "./Inspector";
 // Viewport removed in favor of legacy Three.js renderer wired via HolohandsOverlay
 import { useShortcuts } from "../hooks/useShortcuts";
-import SnapPanel from "./SnapPanel";
 import BooleanPanel from "./BooleanPanel";
 import HolohandsOverlay from "../holo/components/HolohandsOverlay";
 import ChatPanel from "./ChatPanel";
@@ -40,7 +39,7 @@ const Root = styled.div`
 
 export function Layout() {
     useShortcuts();
-    const showChat = useEditor(s => s.showChatPanel)
+    const showChat = useEditor((s) => s.showChatPanel);
     return (
         <VideoStreamProvider>
             <Root>
@@ -50,7 +49,6 @@ export function Layout() {
                 <HolohandsOverlay />
                 <Toolbar />
                 <Inspector />
-                <SnapPanel />
                 <BooleanPanel />
                 {showChat ? <ChatPanel /> : null}
                 <VideoStream />

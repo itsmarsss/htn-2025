@@ -55,6 +55,14 @@ const InspectorContainer = styled.div<{
     cursor: ${(props) => (props.isDragging ? "grabbing" : "default")};
     user-select: none;
     z-index: 1000;
+
+    /* Hide scrollbar for all browsers */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* Internet Explorer 10+ */
+
+    &::-webkit-scrollbar {
+        display: none; /* WebKit */
+    }
 `;
 
 const Row = styled.div`
@@ -148,6 +156,49 @@ const ObjectSelector = styled.select`
     }
 `;
 
+const SnapRow = styled.div`
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+`;
+
+const SnapInput = styled.input`
+    background: #0f1116;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #e6e9ef;
+    border-radius: 6px;
+    padding: 4px 6px;
+    width: 100%;
+    font-size: 12px;
+`;
+
+const SnapLabel = styled.div`
+    font-size: 10px;
+    opacity: 0.6;
+    text-align: center;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+`;
+
+const SnapCheckbox = styled.label`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    opacity: 0.8;
+    margin-bottom: 12px;
+
+    input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: #9aa7ff;
+    }
+`;
+
 const ActionButton = styled.button`
     background: rgba(18, 20, 26, 0.9);
     color: #e6e9ef;
@@ -215,6 +266,9 @@ export function Inspector() {
     const duplicateSelected = useEditor((s) => s.duplicateSelected);
     const deleteSelected = useEditor((s) => s.deleteSelected);
     const select = useEditor((s) => s.select);
+    const snap = useEditor((s) => s.snap);
+    const toggleSnap = useEditor((s) => s.toggleSnap);
+    const setSnap = useEditor((s) => s.setSnap);
 
     // Function to update object name
     const updateName = useEditor((s) => s.updateName);
@@ -400,7 +454,7 @@ export function Inspector() {
                     <InputLabel axis="x">X</InputLabel>
                     <Input
                         type="number"
-                        step="0.1"
+                        step={snap.enableSnapping ? snap.translateSnap : 0.1}
                         value={obj.position.x}
                         onChange={(e) =>
                             updateTransform(obj.id, {
@@ -413,7 +467,7 @@ export function Inspector() {
                     <InputLabel axis="y">Y</InputLabel>
                     <Input
                         type="number"
-                        step="0.1"
+                        step={snap.enableSnapping ? snap.translateSnap : 0.1}
                         value={obj.position.y}
                         onChange={(e) =>
                             updateTransform(obj.id, {
@@ -426,7 +480,7 @@ export function Inspector() {
                     <InputLabel axis="z">Z</InputLabel>
                     <Input
                         type="number"
-                        step="0.1"
+                        step={snap.enableSnapping ? snap.translateSnap : 0.1}
                         value={obj.position.z}
                         onChange={(e) =>
                             updateTransform(obj.id, {
@@ -442,7 +496,7 @@ export function Inspector() {
                     <InputLabel axis="x">X</InputLabel>
                     <Input
                         type="number"
-                        step="0.05"
+                        step={snap.enableSnapping ? snap.rotateSnap : 0.05}
                         value={obj.rotation.x}
                         onChange={(e) =>
                             updateTransform(obj.id, {
@@ -455,7 +509,7 @@ export function Inspector() {
                     <InputLabel axis="y">Y</InputLabel>
                     <Input
                         type="number"
-                        step="0.05"
+                        step={snap.enableSnapping ? snap.rotateSnap : 0.05}
                         value={obj.rotation.y}
                         onChange={(e) =>
                             updateTransform(obj.id, {
@@ -468,7 +522,7 @@ export function Inspector() {
                     <InputLabel axis="z">Z</InputLabel>
                     <Input
                         type="number"
-                        step="0.05"
+                        step={snap.enableSnapping ? snap.rotateSnap : 0.05}
                         value={obj.rotation.z}
                         onChange={(e) =>
                             updateTransform(obj.id, {
@@ -484,7 +538,7 @@ export function Inspector() {
                     <InputLabel axis="x">X</InputLabel>
                     <Input
                         type="number"
-                        step="0.1"
+                        step={snap.enableSnapping ? snap.scaleSnap : 0.1}
                         value={obj.scale.x}
                         onChange={(e) =>
                             updateTransform(obj.id, {
@@ -497,7 +551,7 @@ export function Inspector() {
                     <InputLabel axis="y">Y</InputLabel>
                     <Input
                         type="number"
-                        step="0.1"
+                        step={snap.enableSnapping ? snap.scaleSnap : 0.1}
                         value={obj.scale.y}
                         onChange={(e) =>
                             updateTransform(obj.id, {
@@ -510,7 +564,7 @@ export function Inspector() {
                     <InputLabel axis="z">Z</InputLabel>
                     <Input
                         type="number"
-                        step="0.1"
+                        step={snap.enableSnapping ? snap.scaleSnap : 0.1}
                         value={obj.scale.z}
                         onChange={(e) =>
                             updateTransform(obj.id, {
@@ -551,6 +605,53 @@ export function Inspector() {
                     }
                 />
             </Row>
+
+            <Label>Snap Settings</Label>
+            <SnapCheckbox>
+                <input
+                    type="checkbox"
+                    checked={snap.enableSnapping}
+                    onChange={(e) => toggleSnap(e.target.checked)}
+                />
+                Enable Snapping
+            </SnapCheckbox>
+            <SnapRow>
+                <div>
+                    <SnapLabel>Move</SnapLabel>
+                    <SnapInput
+                        type="number"
+                        step="0.1"
+                        value={snap.translateSnap}
+                        onChange={(e) =>
+                            setSnap({
+                                translateSnap: parseFloat(e.target.value),
+                            })
+                        }
+                    />
+                </div>
+                <div>
+                    <SnapLabel>Rotate</SnapLabel>
+                    <SnapInput
+                        type="number"
+                        step="0.01"
+                        value={snap.rotateSnap}
+                        onChange={(e) =>
+                            setSnap({ rotateSnap: parseFloat(e.target.value) })
+                        }
+                    />
+                </div>
+                <div>
+                    <SnapLabel>Scale</SnapLabel>
+                    <SnapInput
+                        type="number"
+                        step="0.01"
+                        value={snap.scaleSnap}
+                        onChange={(e) =>
+                            setSnap({ scaleSnap: parseFloat(e.target.value) })
+                        }
+                    />
+                </div>
+            </SnapRow>
 
             <ActionsRow>
                 <ActionButton
