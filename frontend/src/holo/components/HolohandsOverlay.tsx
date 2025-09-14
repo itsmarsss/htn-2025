@@ -1,11 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { WebSocketProvider, useWebSocket } from "../provider/WebSocketContext";
 import { ThreeDProvider } from "../provider/ThreeDContext";
 import Editable3DObject from "./ThreeRenderer";
-import {
-    VideoStreamProvider,
-    useVideoStream,
-} from "../provider/VideoStreamContext";
+import { useVideoStream } from "../provider/VideoStreamContext";
 import { useViewportActions } from "../../provider/ViewportContext";
 import useSkeleton from "../hooks/useSkeleton";
 import type { InteractionState } from "../objects/InteractionState";
@@ -21,8 +18,7 @@ function OverlayInner() {
     } = useViewportActions() as any;
     const { getConnectionStatus, getData, sendFrame, getAcknowledged } =
         useWebSocket();
-    const { videoRef, captureFrame } = useVideoStream();
-    const [status, setStatus] = useState("Connecting...");
+    const { captureFrame } = useVideoStream();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const viewportRef = useRef<HTMLDivElement>(null);
     const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -108,7 +104,7 @@ function OverlayInner() {
             const now = performance.now();
             if (now - lastStatusUpdateRef.value > 250) {
                 const s = getConnectionStatus();
-                if (s !== lastStatusRef.value) setStatus(s);
+                // Status tracking removed - video now integrated into chat panel
                 lastStatusRef.value = s;
                 lastStatusUpdateRef.value = now;
             }
@@ -276,7 +272,15 @@ function OverlayInner() {
     // Force rerenders on status changes; data is consumed directly in loop
 
     return (
-        <div style={{ position: "absolute", left: 0, right: 0, top: 56, bottom: 0 }}>
+        <div
+            style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: 56,
+                bottom: 0,
+            }}
+        >
             <div
                 ref={viewportRef}
                 style={{
@@ -292,48 +296,6 @@ function OverlayInner() {
                         interactionStateRef={interactionRef as any}
                     />
                 </ThreeDProvider>
-                <div
-                    style={{
-                        position: "absolute",
-                        right: 12,
-                        top: 8,
-                        zIndex: 20,
-                        display: "flex",
-                        gap: 8,
-                        pointerEvents: "auto",
-                    }}
-                >
-                    <video
-                        ref={videoRef as any}
-                        style={{
-                            width: 160,
-                            height: 90,
-                            background: "#111",
-                            transform: "scaleX(-1)",
-                        }}
-                        autoPlay
-                        muted
-                    />
-                    <div
-                        style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 8,
-                        }}
-                    >
-                        <div
-                            style={{
-                                fontSize: 12,
-                                color: "#bbb",
-                                background: "rgba(0,0,0,0.4)",
-                                padding: "4px 6px",
-                                borderRadius: 4,
-                            }}
-                        >
-                            {status}
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     );
@@ -343,9 +305,7 @@ export default function HolohandsOverlay() {
     const wsUrl = "ws://localhost:6969/ws"; // adjust if needed
     return (
         <WebSocketProvider url={wsUrl}>
-            <VideoStreamProvider>
-                <OverlayInner />
-            </VideoStreamProvider>
+            <OverlayInner />
         </WebSocketProvider>
     );
 }

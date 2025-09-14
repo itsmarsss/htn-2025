@@ -8,6 +8,8 @@ import SnapPanel from "./SnapPanel";
 import BooleanPanel from "./BooleanPanel";
 import HolohandsOverlay from "../holo/components/HolohandsOverlay";
 import ChatPanel from "./ChatPanel";
+import VideoStream from "./VideoStream";
+import { VideoStreamProvider } from "../holo/provider/VideoStreamContext";
 
 const Global = createGlobalStyle`
   html, body, #root {
@@ -38,17 +40,20 @@ const Root = styled.div`
 export function Layout() {
     useShortcuts();
     return (
-        <Root>
-            <Global />
-            <Topbar />
-            {/* Three.js renderer is mounted inside HolohandsOverlay now */}
-            <HolohandsOverlay />
-            <Toolbar />
-            <Inspector />
-            <SnapPanel />
-            <BooleanPanel />
-            <ChatPanel />
-        </Root>
+        <VideoStreamProvider>
+            <Root>
+                <Global />
+                <Topbar />
+                {/* Three.js renderer is mounted inside HolohandsOverlay now */}
+                <HolohandsOverlay />
+                <Toolbar />
+                <Inspector />
+                <SnapPanel />
+                <BooleanPanel />
+                <ChatPanel />
+                <VideoStream />
+            </Root>
+        </VideoStreamProvider>
     );
 }
 
