@@ -7,6 +7,10 @@ import {
     ConeIcon,
     TorusIcon,
     PlaneIcon,
+    DirectionalLightIcon,
+    PointLightIcon,
+    SpotLightIcon,
+    AmbientLightIcon,
 } from "./ShapeIcons";
 
 const Rail = styled.div`
@@ -45,6 +49,7 @@ const Btn = styled.button`
 
 export function Toolbar() {
     const add = useEditor((s) => s.addObject);
+    const addLight = useEditor((s) => s.addLight);
 
     return (
         <Rail>
@@ -65,6 +70,23 @@ export function Toolbar() {
             </Btn>
             <Btn onClick={() => add("plane")} title="Add Plane">
                 <PlaneIcon size={20} />
+            </Btn>
+
+            {/* Light buttons */}
+            <Btn
+                onClick={() => addLight("directional")}
+                title="Add Directional Light"
+            >
+                <DirectionalLightIcon size={20} />
+            </Btn>
+            <Btn onClick={() => addLight("point")} title="Add Point Light">
+                <PointLightIcon size={20} />
+            </Btn>
+            <Btn onClick={() => addLight("spot")} title="Add Spot Light">
+                <SpotLightIcon size={20} />
+            </Btn>
+            <Btn onClick={() => addLight("ambient")} title="Add Ambient Light">
+                <AmbientLightIcon size={20} />
             </Btn>
         </Rail>
     );

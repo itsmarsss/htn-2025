@@ -379,3 +379,194 @@ export const DeleteIcon: React.FC<ShapeIconProps> = ({
         />
     </svg>
 );
+
+export const DirectionalLightIcon: React.FC<ShapeIconProps> = ({
+    size = 24,
+    color = "#e6e9ef",
+}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        {/* Sun with rays */}
+        <circle
+            cx="12"
+            cy="12"
+            r="3"
+            stroke={color}
+            strokeWidth="1.5"
+            fill="none"
+        />
+        {/* Sun rays */}
+        <line x1="12" y1="2" x2="12" y2="4" stroke={color} strokeWidth="1.5" />
+        <line
+            x1="12"
+            y1="20"
+            x2="12"
+            y2="22"
+            stroke={color}
+            strokeWidth="1.5"
+        />
+        <line x1="2" y1="12" x2="4" y2="12" stroke={color} strokeWidth="1.5" />
+        <line
+            x1="20"
+            y1="12"
+            x2="22"
+            y2="12"
+            stroke={color}
+            strokeWidth="1.5"
+        />
+        <line
+            x1="4.93"
+            y1="4.93"
+            x2="6.34"
+            y2="6.34"
+            stroke={color}
+            strokeWidth="1.5"
+        />
+        <line
+            x1="17.66"
+            y1="17.66"
+            x2="19.07"
+            y2="19.07"
+            stroke={color}
+            strokeWidth="1.5"
+        />
+        <line
+            x1="19.07"
+            y1="4.93"
+            x2="17.66"
+            y2="6.34"
+            stroke={color}
+            strokeWidth="1.5"
+        />
+        <line
+            x1="6.34"
+            y1="17.66"
+            x2="4.93"
+            y2="19.07"
+            stroke={color}
+            strokeWidth="1.5"
+        />
+    </svg>
+);
+
+export const PointLightIcon: React.FC<ShapeIconProps> = ({
+    size = 24,
+    color = "#e6e9ef",
+}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        {/* Light bulb */}
+        <circle
+            cx="12"
+            cy="12"
+            r="4"
+            stroke={color}
+            strokeWidth="1.5"
+            fill="none"
+        />
+        {/* Light rays emanating outward */}
+        <circle
+            cx="12"
+            cy="12"
+            r="8"
+            stroke={color}
+            strokeWidth="1"
+            fill="none"
+            opacity="0.6"
+        />
+        <circle
+            cx="12"
+            cy="12"
+            r="10"
+            stroke={color}
+            strokeWidth="0.5"
+            fill="none"
+            opacity="0.3"
+        />
+        {/* Base of light bulb */}
+        <rect
+            x="10"
+            y="16"
+            width="4"
+            height="2"
+            rx="1"
+            fill={color}
+            opacity="0.8"
+        />
+    </svg>
+);
+
+export const SpotLightIcon: React.FC<ShapeIconProps> = ({
+    size = 24,
+    color = "#e6e9ef",
+}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        {/* Spotlight cone */}
+        <path
+            d="M12 2L8 8L12 14L16 8L12 2Z"
+            stroke={color}
+            strokeWidth="1.5"
+            fill="none"
+        />
+        {/* Light beam */}
+        <path
+            d="M8 8L6 16L12 14L18 16L16 8"
+            stroke={color}
+            strokeWidth="1"
+            fill="none"
+            opacity="0.6"
+        />
+        {/* Base */}
+        <rect
+            x="10"
+            y="16"
+            width="4"
+            height="2"
+            rx="1"
+            fill={color}
+            opacity="0.8"
+        />
+    </svg>
+);
+
+export const AmbientLightIcon: React.FC<ShapeIconProps> = ({
+    size = 24,
+    color = "#e6e9ef",
+}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        {/* Ambient light symbol - soft glow */}
+        <circle
+            cx="12"
+            cy="12"
+            r="6"
+            stroke={color}
+            strokeWidth="1.5"
+            fill="none"
+            opacity="0.8"
+        />
+        <circle
+            cx="12"
+            cy="12"
+            r="4"
+            stroke={color}
+            strokeWidth="1"
+            fill="none"
+            opacity="0.6"
+        />
+        <circle
+            cx="12"
+            cy="12"
+            r="2"
+            stroke={color}
+            strokeWidth="1"
+            fill="none"
+            opacity="0.4"
+        />
+        {/* Soft rays */}
+        <path
+            d="M12 6C12 6 15 9 15 12C15 15 12 18 12 18C12 18 9 15 9 12C9 9 12 6 12 6Z"
+            stroke={color}
+            strokeWidth="0.5"
+            fill="none"
+            opacity="0.3"
+        />
+    </svg>
+);

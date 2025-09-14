@@ -7,11 +7,14 @@ import type {
     GeometryParamsMap,
     HistoryState,
     SceneObject,
+    SceneLight,
     SnapSettings,
     TransformMode,
     Vector3,
     Euler,
     EditorMode,
+    LightType,
+    LightProps,
 } from "../types";
 import * as THREE from "three";
 import { CSG } from "three-csg-ts";
@@ -33,6 +36,55 @@ function createVector3(x = 0, y = 0, z = 0): Vector3 {
 
 function createEuler(x = 0, y = 0, z = 0): Euler {
     return { x, y, z };
+}
+
+function createDefaultLightProps(type: LightType): LightProps {
+    switch (type) {
+        case "directional":
+            return {
+                color: "#ffffff",
+                intensity: 1,
+            };
+        case "point":
+            return {
+                color: "#ffffff",
+                intensity: 1,
+                distance: 0,
+                decay: 2,
+            };
+        case "spot":
+            return {
+                color: "#ffffff",
+                intensity: 1,
+                distance: 0,
+                angle: Math.PI / 3,
+                penumbra: 0,
+                decay: 2,
+            };
+        case "ambient":
+            return {
+                color: "#ffffff",
+                intensity: 0.4,
+            };
+        default:
+            return {
+                color: "#ffffff",
+                intensity: 1,
+            };
+    }
+}
+
+function createLight(type: LightType): SceneLight {
+    return {
+        id: nanoid(8),
+        name: `${type.charAt(0).toUpperCase() + type.slice(1)} Light`,
+        type,
+        position: createVector3(0, 2, 0),
+        rotation: createEuler(0, 0, 0),
+        props: createDefaultLightProps(type),
+        visible: true,
+        castShadow: type !== "ambient",
+    };
 }
 
 function buildGeometryFromObject(o: SceneObject): THREE.BufferGeometry {
@@ -129,6 +181,7 @@ const initialState: EditorState & {
     isGizmoInteracting?: boolean;
 } = {
     objects: [],
+    lights: [],
     selectedId: null,
     mode: "translate",
     editorMode: "object",
@@ -175,6 +228,10 @@ interface EditorStore extends EditorState {
         kind: K,
         params?: GeometryParamsMap[K]
     ) => void;
+    addLight: (type: LightType) => void;
+    updateLightTransform: (id: string, partial: TransformPartial) => void;
+    updateLightProps: (id: string, partial: Partial<LightProps>) => void;
+    deleteLight: (id: string) => void;
     toggleSnap: (enabled: boolean) => void;
     setSnap: (partial: Partial<SnapSettings>) => void;
     booleanOp: (
@@ -426,4 +483,52 @@ export const useEditor = create<EditorStore>()((set) => ({
             return next;
         }),
     clear: () => set(() => JSON.parse(JSON.stringify(initialState))),
+    addLight: (type) =>
+        set((state) => {
+            const newLight = createLight(type);
+            const next = produce(state, (draft) => {
+                draft.past.push(snapshot(state));
+                draft.future = [];
+                draft.lights.push(newLight);
+                draft.selectedId = newLight.id;
+            });
+            return next;
+        }),
+    updateLightTransform: (id, partial) =>
+        set((state) =>
+            produce(state, (draft) => {
+                const light = draft.lights.find((l) => l.id === id);
+                if (!light) return;
+                if (partial.position) {
+                    light.position = { ...light.position, ...partial.position };
+                }
+                if (partial.rotation) {
+                    light.rotation = { ...light.rotation, ...partial.rotation };
+                }
+                if (partial.scale) {
+                    // Lights don't typically use scale, but we'll support it for consistency
+                    light.position = { ...light.position, ...partial.scale };
+                }
+            })
+        ),
+    updateLightProps: (id, partial) =>
+        set((state) =>
+            produce(state, (draft) => {
+                const light = draft.lights.find((l) => l.id === id);
+                if (!light) return;
+                light.props = { ...light.props, ...partial };
+            })
+        ),
+    deleteLight: (id) =>
+        set((state) => {
+            const next = produce(state, (draft) => {
+                draft.past.push(snapshot(state));
+                draft.future = [];
+                draft.lights = draft.lights.filter((l) => l.id !== id);
+                if (draft.selectedId === id) {
+                    draft.selectedId = null;
+                }
+            });
+            return next;
+        }),
 }));

@@ -70,6 +70,28 @@ export interface MaterialProps {
     transparent: boolean;
 }
 
+export type LightType = "directional" | "point" | "spot" | "ambient";
+
+export interface LightProps {
+    color: string;
+    intensity: number;
+    distance?: number; // for point and spot lights
+    angle?: number; // for spot lights
+    penumbra?: number; // for spot lights
+    decay?: number; // for point and spot lights
+}
+
+export interface SceneLight {
+    id: string;
+    name: string;
+    type: LightType;
+    position: Vector3;
+    rotation: Euler; // for directional and spot lights
+    props: LightProps;
+    visible: boolean;
+    castShadow: boolean;
+}
+
 export interface SceneObject {
     id: string;
     name: string;
@@ -110,6 +132,7 @@ export interface Checkpoint {
 
 export interface EditorState {
     objects: SceneObject[];
+    lights: SceneLight[];
     selectedId: string | null;
     mode: TransformMode;
     editorMode?: EditorMode;

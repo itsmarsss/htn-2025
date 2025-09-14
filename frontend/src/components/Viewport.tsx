@@ -12,7 +12,12 @@ import {
 import { useEditor } from "../store/editor";
 import * as THREE from "three";
 import { deserializeGeometry } from "../utils/geometry";
-import type { GeometryParamsMap, EditorState, SceneObject } from "../types";
+import type {
+    GeometryParamsMap,
+    EditorState,
+    SceneObject,
+    SceneLight,
+} from "../types";
 import { useRegisterViewportActions } from "../provider/ViewportContext";
 import { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { TransformControls as TransformControlsImpl } from "three-stdlib";
@@ -273,6 +278,182 @@ function RenderObject({
     );
 }
 
+function RenderLight({
+    light,
+    isSelected,
+    mode,
+    snap,
+    orbitRef,
+    beginTransform,
+    endTransform,
+    updateTransform,
+    editorMode,
+}: {
+    light: SceneLight;
+    isSelected: boolean;
+    mode: "translate" | "rotate" | "scale";
+    snap: {
+        enableSnapping: boolean;
+        translateSnap: number;
+        rotateSnap: number;
+        scaleSnap: number;
+    };
+    orbitRef: React.RefObject<OrbitControlsImpl | null>;
+    beginTransform: () => void;
+    endTransform: () => void;
+    updateTransform: (
+        id: string,
+        partial: Partial<Pick<SceneLight, "position" | "rotation">>
+    ) => void;
+    editorMode: "object" | "edit" | "render";
+}) {
+    const transformRef = useRef<TransformControlsImpl>(null);
+    const setGizmoInteracting = useEditor((s) => s.setGizmoInteracting);
+    const isTransforming = useEditor(
+        (s: EditorState) => s.isTransforming ?? false
+    );
+
+    const position: ThreeElements["group"]["position"] = [
+        light.position.x,
+        light.position.y,
+        light.position.z,
+    ];
+    const rotation: ThreeElements["group"]["rotation"] = [
+        light.rotation.x,
+        light.rotation.y,
+        light.rotation.z,
+    ];
+
+    // Create a visual representation of the light
+    const lightVisual = (() => {
+        switch (light.type) {
+            case "directional":
+                return (
+                    <group>
+                        <mesh>
+                            <sphereGeometry args={[0.1, 8, 8]} />
+                            <meshBasicMaterial color={light.props.color} />
+                        </mesh>
+                        <arrowHelper
+                            args={[
+                                new THREE.Vector3(0, -1, 0),
+                                new THREE.Vector3(0, 0, 0),
+                                0.5,
+                                light.props.color,
+                            ]}
+                        />
+                    </group>
+                );
+            case "point":
+                return (
+                    <group>
+                        <mesh>
+                            <sphereGeometry args={[0.1, 8, 8]} />
+                            <meshBasicMaterial color={light.props.color} />
+                        </mesh>
+                        <mesh>
+                            <sphereGeometry args={[0.3, 16, 16]} />
+                            <meshBasicMaterial
+                                color={light.props.color}
+                                transparent
+                                opacity={0.1}
+                            />
+                        </mesh>
+                    </group>
+                );
+            case "spot":
+                return (
+                    <group>
+                        <mesh>
+                            <sphereGeometry args={[0.1, 8, 8]} />
+                            <meshBasicMaterial color={light.props.color} />
+                        </mesh>
+                        <coneGeometry args={[0.2, 0.5, 8]} />
+                        <meshBasicMaterial
+                            color={light.props.color}
+                            transparent
+                            opacity={0.3}
+                        />
+                    </group>
+                );
+            case "ambient":
+                return (
+                    <mesh>
+                        <sphereGeometry args={[0.1, 8, 8]} />
+                        <meshBasicMaterial color={light.props.color} />
+                    </mesh>
+                );
+            default:
+                return null;
+        }
+    })();
+
+    const meshProps =
+        !isSelected || !isTransforming ? { position, rotation } : {};
+
+    const mesh = (
+        <group
+            visible={light.visible}
+            {...(meshProps as Partial<ThreeElements["group"]>)}
+        >
+            {lightVisual}
+        </group>
+    );
+
+    if (isSelected && editorMode !== "render") {
+        return (
+            <TransformControls
+                ref={transformRef as React.Ref<TransformControlsImpl>}
+                mode={mode}
+                showX
+                showY
+                showZ
+                translationSnap={
+                    snap.enableSnapping ? snap.translateSnap : undefined
+                }
+                rotationSnap={snap.enableSnapping ? snap.rotateSnap : undefined}
+                onPointerDown={() => {
+                    if (orbitRef.current) orbitRef.current.enabled = false;
+                    setGizmoInteracting(true);
+                    beginTransform();
+                }}
+                onPointerUp={() => {
+                    const obj = (
+                        transformRef.current as unknown as {
+                            object?: THREE.Object3D;
+                        }
+                    )?.object;
+                    if (obj) {
+                        updateTransform(light.id, {
+                            position: {
+                                x: obj.position.x,
+                                y: obj.position.y,
+                                z: obj.position.z,
+                            },
+                            rotation: {
+                                x: obj.rotation.x,
+                                y: obj.rotation.y,
+                                z: obj.rotation.z,
+                            },
+                        });
+                    }
+                    endTransform();
+                    setGizmoInteracting(false);
+                    if (orbitRef.current) orbitRef.current.enabled = true;
+                }}
+            >
+                {mesh}
+            </TransformControls>
+        );
+    }
+
+    return editorMode === "render" ? (
+        mesh
+    ) : (
+        <Selectable id={light.id}>{mesh}</Selectable>
+    );
+}
+
 function SceneObjects({
     orbitRef,
     editorMode,
@@ -281,10 +462,12 @@ function SceneObjects({
     editorMode: "object" | "edit" | "render";
 }) {
     const objects = useEditor((s) => s.objects);
+    const lights = useEditor((s) => s.lights);
     const selectedId = useEditor((s) => s.selectedId);
     const mode = useEditor((s) => s.mode);
     const snap = useEditor((s) => s.snap);
     const updateTransform = useEditor((s) => s.updateTransform);
+    const updateLightTransform = useEditor((s) => s.updateLightTransform);
     const beginTransform = useEditor((s) => s.beginTransform);
     const endTransform = useEditor((s) => s.endTransform);
 
@@ -304,20 +487,96 @@ function SceneObjects({
                     editorMode={editorMode}
                 />
             ))}
+            {lights.map((light) => (
+                <RenderLight
+                    key={light.id}
+                    light={light}
+                    isSelected={selectedId === light.id}
+                    mode={mode}
+                    snap={snap}
+                    orbitRef={orbitRef}
+                    beginTransform={beginTransform}
+                    endTransform={endTransform}
+                    updateTransform={updateLightTransform}
+                    editorMode={editorMode}
+                />
+            ))}
         </group>
     );
 }
 
 function Lights() {
+    const lights = useEditor((s) => s.lights);
+
     return (
         <>
-            <ambientLight intensity={0.6} />
-            <directionalLight
-                position={[5, 5, 5]}
-                intensity={0.8}
-                castShadow
-                shadow-mapSize={[2048, 2048]}
-            />
+            {lights.map((light) => {
+                const position: ThreeElements["group"]["position"] = [
+                    light.position.x,
+                    light.position.y,
+                    light.position.z,
+                ];
+                const rotation: ThreeElements["group"]["rotation"] = [
+                    light.rotation.x,
+                    light.rotation.y,
+                    light.rotation.z,
+                ];
+
+                switch (light.type) {
+                    case "directional":
+                        return (
+                            <directionalLight
+                                key={light.id}
+                                position={position}
+                                rotation={rotation}
+                                intensity={light.props.intensity}
+                                color={light.props.color}
+                                castShadow={light.castShadow}
+                                visible={light.visible}
+                            />
+                        );
+                    case "point":
+                        return (
+                            <pointLight
+                                key={light.id}
+                                position={position}
+                                intensity={light.props.intensity}
+                                color={light.props.color}
+                                distance={light.props.distance || 0}
+                                decay={light.props.decay || 2}
+                                castShadow={light.castShadow}
+                                visible={light.visible}
+                            />
+                        );
+                    case "spot":
+                        return (
+                            <spotLight
+                                key={light.id}
+                                position={position}
+                                rotation={rotation}
+                                intensity={light.props.intensity}
+                                color={light.props.color}
+                                distance={light.props.distance || 0}
+                                angle={light.props.angle || Math.PI / 3}
+                                penumbra={light.props.penumbra || 0}
+                                decay={light.props.decay || 2}
+                                castShadow={light.castShadow}
+                                visible={light.visible}
+                            />
+                        );
+                    case "ambient":
+                        return (
+                            <ambientLight
+                                key={light.id}
+                                intensity={light.props.intensity}
+                                color={light.props.color}
+                                visible={light.visible}
+                            />
+                        );
+                    default:
+                        return null;
+                }
+            })}
         </>
     );
 }
@@ -331,7 +590,7 @@ export function Viewport() {
         (s: EditorState & { isGizmoInteracting?: boolean }) =>
             s.isGizmoInteracting ?? false
     );
-    const editorMode = useEditor((s) => s.editorMode);
+    const editorMode = useEditor((s) => s.editorMode) || "object";
     const orbitRef = useRef<OrbitControlsImpl | null>(null);
     const addObject = useEditor((s) => s.addObject);
     const register = useRegisterViewportActions();
