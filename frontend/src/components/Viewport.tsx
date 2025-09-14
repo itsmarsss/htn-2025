@@ -326,19 +326,25 @@ function RenderLight({
 
     // Create a visual representation of the light
     const lightVisual = (() => {
+        console.log(
+            "Creating light visual for:",
+            light.type,
+            "at position:",
+            position
+        );
         switch (light.type) {
             case "directional":
                 return (
                     <group>
                         <mesh>
-                            <sphereGeometry args={[0.1, 8, 8]} />
+                            <sphereGeometry args={[0.2, 8, 8]} />
                             <meshBasicMaterial color={light.props.color} />
                         </mesh>
                         <arrowHelper
                             args={[
                                 new THREE.Vector3(0, -1, 0),
                                 new THREE.Vector3(0, 0, 0),
-                                0.5,
+                                0.8,
                                 light.props.color,
                             ]}
                         />
@@ -348,7 +354,7 @@ function RenderLight({
                 return (
                     <group>
                         <mesh>
-                            <sphereGeometry args={[0.1, 8, 8]} />
+                            <sphereGeometry args={[0.2, 8, 8]} />
                             <meshBasicMaterial color={light.props.color} />
                         </mesh>
                         {/* Multiple concentric spheres to show light falloff */}
@@ -399,7 +405,7 @@ function RenderLight({
                 return (
                     <group>
                         <mesh>
-                            <sphereGeometry args={[0.1, 8, 8]} />
+                            <sphereGeometry args={[0.2, 8, 8]} />
                             <meshBasicMaterial color={light.props.color} />
                         </mesh>
                         {/* Spotlight cone */}
@@ -449,7 +455,7 @@ function RenderLight({
                 return (
                     <group>
                         <mesh>
-                            <sphereGeometry args={[0.1, 8, 8]} />
+                            <sphereGeometry args={[0.2, 8, 8]} />
                             <meshBasicMaterial color={light.props.color} />
                         </mesh>
                         {/* Soft, pulsing glow effect */}
@@ -513,10 +519,7 @@ function RenderLight({
         !isSelected || !isTransforming ? { position, rotation } : {};
 
     const mesh = (
-        <group
-            visible={light.visible}
-            {...(meshProps as Partial<ThreeElements["group"]>)}
-        >
+        <group {...(meshProps as Partial<ThreeElements["group"]>)}>
             {lightVisual}
         </group>
     );
@@ -592,6 +595,9 @@ function SceneObjects({
     const beginTransform = useEditor((s) => s.beginTransform);
     const endTransform = useEditor((s) => s.endTransform);
 
+    console.log("SceneObjects - lights array:", lights.length, lights);
+    console.log("SceneObjects - objects array:", objects.length, objects);
+
     return (
         <group>
             {objects.map((o) => (
@@ -608,20 +614,29 @@ function SceneObjects({
                     editorMode={editorMode}
                 />
             ))}
-            {lights.map((light) => (
-                <RenderLight
-                    key={light.id}
-                    light={light}
-                    isSelected={selectedId === light.id}
-                    mode={mode}
-                    snap={snap}
-                    orbitRef={orbitRef}
-                    beginTransform={beginTransform}
-                    endTransform={endTransform}
-                    updateTransform={updateLightTransform}
-                    editorMode={editorMode}
-                />
-            ))}
+            {lights.map((light) => {
+                console.log(
+                    "Rendering light in SceneObjects:",
+                    light.id,
+                    light.type,
+                    "editorMode:",
+                    editorMode
+                );
+                return (
+                    <RenderLight
+                        key={light.id}
+                        light={light}
+                        isSelected={selectedId === light.id}
+                        mode={mode}
+                        snap={snap}
+                        orbitRef={orbitRef}
+                        beginTransform={beginTransform}
+                        endTransform={endTransform}
+                        updateTransform={updateLightTransform}
+                        editorMode={editorMode}
+                    />
+                );
+            })}
         </group>
     );
 }
@@ -857,72 +872,67 @@ export function Viewport() {
                 dampingFactor={0.08}
             />
             <Lights />
-            {editorMode !== "render" && (
-                <>
-                    <Grid
-                        infiniteGrid
-                        fadeDistance={40}
-                        cellSize={0.5}
-                        sectionSize={2}
-                        cellThickness={0.3}
-                        sectionThickness={1}
-                    />
-                    {/* Custom axis lines that extend in both directions - full grid span */}
-                    <group>
-                        {/* X-axis (Bright Red) */}
-                        <line>
-                            <bufferGeometry>
-                                <bufferAttribute
-                                    attach="attributes-position"
-                                    args={[
-                                        new Float32Array([
-                                            -500, 0, 0, 500, 0, 0,
-                                        ]),
-                                        3,
-                                    ]}
-                                />
-                            </bufferGeometry>
-                            <lineBasicMaterial color="#ff2222" linewidth={4} />
-                        </line>
-                        {/* Y-axis (Bright Green) */}
-                        <line>
-                            <bufferGeometry>
-                                <bufferAttribute
-                                    attach="attributes-position"
-                                    args={[
-                                        new Float32Array([
-                                            0, -500, 0, 0, 500, 0,
-                                        ]),
-                                        3,
-                                    ]}
-                                />
-                            </bufferGeometry>
-                            <lineBasicMaterial color="#22ff22" linewidth={4} />
-                        </line>
-                        {/* Z-axis (Bright Blue) */}
-                        <line>
-                            <bufferGeometry>
-                                <bufferAttribute
-                                    attach="attributes-position"
-                                    args={[
-                                        new Float32Array([
-                                            0, 0, -500, 0, 0, 500,
-                                        ]),
-                                        3,
-                                    ]}
-                                />
-                            </bufferGeometry>
-                            <lineBasicMaterial color="#2222ff" linewidth={4} />
-                        </line>
-                    </group>
-                    {/* AccumulativeShadows temporarily disabled to avoid drei uniform .value crash */}
-                    <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
-                        <GizmoViewport
-                            axisColors={["#ff6b6b", "#51cf66", "#4dabf7"]}
-                            labelColor="#dee2e6"
+            {/* Grid and axes - show in all modes including render */}
+            <Grid
+                infiniteGrid
+                fadeDistance={40}
+                cellSize={0.5}
+                sectionSize={2}
+                cellThickness={0.3}
+                sectionThickness={1}
+                cellColor="#ffffff"
+                sectionColor="#ffffff"
+            />
+            {/* Custom axis lines that extend in both directions - full grid span */}
+            <group>
+                {/* X-axis (Bright Red) */}
+                <line>
+                    <bufferGeometry>
+                        <bufferAttribute
+                            attach="attributes-position"
+                            args={[
+                                new Float32Array([-500, 0, 0, 500, 0, 0]),
+                                3,
+                            ]}
                         />
-                    </GizmoHelper>
-                </>
+                    </bufferGeometry>
+                    <lineBasicMaterial color="#ff2222" linewidth={4} />
+                </line>
+                {/* Y-axis (Bright Green) */}
+                <line>
+                    <bufferGeometry>
+                        <bufferAttribute
+                            attach="attributes-position"
+                            args={[
+                                new Float32Array([0, -500, 0, 0, 500, 0]),
+                                3,
+                            ]}
+                        />
+                    </bufferGeometry>
+                    <lineBasicMaterial color="#22ff22" linewidth={4} />
+                </line>
+                {/* Z-axis (Bright Blue) */}
+                <line>
+                    <bufferGeometry>
+                        <bufferAttribute
+                            attach="attributes-position"
+                            args={[
+                                new Float32Array([0, 0, -500, 0, 0, 500]),
+                                3,
+                            ]}
+                        />
+                    </bufferGeometry>
+                    <lineBasicMaterial color="#2222ff" linewidth={4} />
+                </line>
+            </group>
+            {/* Gizmo helper - only show in non-render modes */}
+            {editorMode !== "render" && (
+                <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
+                    <GizmoViewport
+                        axisColors={["#ff6b6b", "#51cf66", "#4dabf7"]}
+                        labelColor="#dee2e6"
+                    />
+                </GizmoHelper>
             )}
             <SceneObjects orbitRef={orbitRef} editorMode={editorMode} />
         </Canvas>
