@@ -15,6 +15,8 @@ const Bar = styled.div`
     background: rgba(20, 22, 28, 0.9);
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     backdrop-filter: blur(10px);
+  position: relative;
+  z-index: 100;
 `;
 
 const Group = styled.div`
@@ -168,7 +170,10 @@ export function Topbar() {
             <Group>
                 <Btn onClick={undo}>Undo</Btn>
                 <Btn onClick={redo}>Redo</Btn>
-            </Group>
+              <Btn onClick={() => {
+          try { (useEditor as any).setState((s: any) => ({ ...s, showChatPanel: true })); } catch {}
+        }}>💬</Btn>
+      </Group>
         </Bar>
     );
 }
