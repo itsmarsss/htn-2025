@@ -48,6 +48,7 @@ function RenderObject({
     beginTransform,
     endTransform,
     updateTransform,
+    editorMode,
 }: {
     o: SceneObject;
     isSelected: boolean;
@@ -65,6 +66,7 @@ function RenderObject({
         id: string,
         partial: Partial<Pick<SceneObject, "position" | "rotation" | "scale">>
     ) => void;
+    editorMode: "object" | "edit" | "render";
 }) {
     const transformRef = useRef<TransformControlsImpl>(null);
     const meshRef = useRef<THREE.Mesh>(null);
@@ -211,7 +213,7 @@ function RenderObject({
         </mesh>
     );
 
-    if (isSelected) {
+    if (isSelected && editorMode !== "render") {
         return (
             <TransformControls
                 ref={transformRef as React.Ref<TransformControlsImpl>}
@@ -264,13 +266,19 @@ function RenderObject({
         );
     }
 
-    return <Selectable id={o.id}>{mesh}</Selectable>;
+    return editorMode === "render" ? (
+        mesh
+    ) : (
+        <Selectable id={o.id}>{mesh}</Selectable>
+    );
 }
 
 function SceneObjects({
     orbitRef,
+    editorMode,
 }: {
     orbitRef: React.RefObject<OrbitControlsImpl | null>;
+    editorMode: "object" | "edit" | "render";
 }) {
     const objects = useEditor((s) => s.objects);
     const selectedId = useEditor((s) => s.selectedId);
@@ -293,6 +301,7 @@ function SceneObjects({
                     beginTransform={beginTransform}
                     endTransform={endTransform}
                     updateTransform={updateTransform}
+                    editorMode={editorMode}
                 />
             ))}
         </group>
@@ -322,6 +331,7 @@ export function Viewport() {
         (s: EditorState & { isGizmoInteracting?: boolean }) =>
             s.isGizmoInteracting ?? false
     );
+    const editorMode = useEditor((s) => s.editorMode);
     const orbitRef = useRef<OrbitControlsImpl | null>(null);
     const addObject = useEditor((s) => s.addObject);
     const register = useRegisterViewportActions();
@@ -467,61 +477,74 @@ export function Viewport() {
                 dampingFactor={0.08}
             />
             <Lights />
-            <Grid
-                infiniteGrid
-                fadeDistance={40}
-                cellSize={0.5}
-                sectionSize={2}
-                cellThickness={0.3}
-                sectionThickness={1}
-            />
-            {/* Custom axis lines that extend in both directions - full grid span */}
-            <group>
-                {/* X-axis (Bright Red) */}
-                <line>
-                    <bufferGeometry>
-                        <bufferAttribute
-                            attach="attributes-position"
-                            count={2}
-                            array={new Float32Array([-500, 0, 0, 500, 0, 0])}
-                            itemSize={3}
+            {editorMode !== "render" && (
+                <>
+                    <Grid
+                        infiniteGrid
+                        fadeDistance={40}
+                        cellSize={0.5}
+                        sectionSize={2}
+                        cellThickness={0.3}
+                        sectionThickness={1}
+                    />
+                    {/* Custom axis lines that extend in both directions - full grid span */}
+                    <group>
+                        {/* X-axis (Bright Red) */}
+                        <line>
+                            <bufferGeometry>
+                                <bufferAttribute
+                                    attach="attributes-position"
+                                    args={[
+                                        new Float32Array([
+                                            -500, 0, 0, 500, 0, 0,
+                                        ]),
+                                        3,
+                                    ]}
+                                />
+                            </bufferGeometry>
+                            <lineBasicMaterial color="#ff2222" linewidth={4} />
+                        </line>
+                        {/* Y-axis (Bright Green) */}
+                        <line>
+                            <bufferGeometry>
+                                <bufferAttribute
+                                    attach="attributes-position"
+                                    args={[
+                                        new Float32Array([
+                                            0, -500, 0, 0, 500, 0,
+                                        ]),
+                                        3,
+                                    ]}
+                                />
+                            </bufferGeometry>
+                            <lineBasicMaterial color="#22ff22" linewidth={4} />
+                        </line>
+                        {/* Z-axis (Bright Blue) */}
+                        <line>
+                            <bufferGeometry>
+                                <bufferAttribute
+                                    attach="attributes-position"
+                                    args={[
+                                        new Float32Array([
+                                            0, 0, -500, 0, 0, 500,
+                                        ]),
+                                        3,
+                                    ]}
+                                />
+                            </bufferGeometry>
+                            <lineBasicMaterial color="#2222ff" linewidth={4} />
+                        </line>
+                    </group>
+                    {/* AccumulativeShadows temporarily disabled to avoid drei uniform .value crash */}
+                    <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
+                        <GizmoViewport
+                            axisColors={["#ff6b6b", "#51cf66", "#4dabf7"]}
+                            labelColor="#dee2e6"
                         />
-                    </bufferGeometry>
-                    <lineBasicMaterial color="#ff2222" linewidth={4} />
-                </line>
-                {/* Y-axis (Bright Green) */}
-                <line>
-                    <bufferGeometry>
-                        <bufferAttribute
-                            attach="attributes-position"
-                            count={2}
-                            array={new Float32Array([0, -500, 0, 0, 500, 0])}
-                            itemSize={3}
-                        />
-                    </bufferGeometry>
-                    <lineBasicMaterial color="#22ff22" linewidth={4} />
-                </line>
-                {/* Z-axis (Bright Blue) */}
-                <line>
-                    <bufferGeometry>
-                        <bufferAttribute
-                            attach="attributes-position"
-                            count={2}
-                            array={new Float32Array([0, 0, -500, 0, 0, 500])}
-                            itemSize={3}
-                        />
-                    </bufferGeometry>
-                    <lineBasicMaterial color="#2222ff" linewidth={4} />
-                </line>
-            </group>
-            {/* AccumulativeShadows temporarily disabled to avoid drei uniform .value crash */}
-            <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
-                <GizmoViewport
-                    axisColors={["#ff6b6b", "#51cf66", "#4dabf7"]}
-                    labelColor="#dee2e6"
-                />
-            </GizmoHelper>
-            <SceneObjects orbitRef={orbitRef} />
+                    </GizmoHelper>
+                </>
+            )}
+            <SceneObjects orbitRef={orbitRef} editorMode={editorMode} />
         </Canvas>
     );
 }
