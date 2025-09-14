@@ -109,6 +109,46 @@ export const ThreeDProvider: React.FC<{ children: React.ReactNode }> = ({
         (gridHelper.material as THREE.LineBasicMaterial).color.setHex(0xffffff);
         mainGroupRef.current.add(gridHelper);
 
+        // Add custom axis lines that extend in both directions (X=Red, Y=Green, Z=Blue)
+        const axisLength = 500; // Match the grid span (half of 1000)
+        const axisThickness = 4; // Slightly thicker for better visibility
+
+        // X-axis (Bright Red) - extends in both positive and negative X directions
+        const xGeometry = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-axisLength, 0, 0),
+            new THREE.Vector3(axisLength, 0, 0),
+        ]);
+        const xMaterial = new THREE.LineBasicMaterial({
+            color: 0xff2222, // Brighter red
+            linewidth: axisThickness,
+        });
+        const xAxis = new THREE.Line(xGeometry, xMaterial);
+        mainGroupRef.current.add(xAxis);
+
+        // Y-axis (Bright Green) - extends in both positive and negative Y directions
+        const yGeometry = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, -axisLength, 0),
+            new THREE.Vector3(0, axisLength, 0),
+        ]);
+        const yMaterial = new THREE.LineBasicMaterial({
+            color: 0x22ff22, // Brighter green
+            linewidth: axisThickness,
+        });
+        const yAxis = new THREE.Line(yGeometry, yMaterial);
+        mainGroupRef.current.add(yAxis);
+
+        // Z-axis (Bright Blue) - extends in both positive and negative Z directions
+        const zGeometry = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, 0, -axisLength),
+            new THREE.Vector3(0, 0, axisLength),
+        ]);
+        const zMaterial = new THREE.LineBasicMaterial({
+            color: 0x2222ff, // Brighter blue
+            linewidth: axisThickness,
+        });
+        const zAxis = new THREE.Line(zGeometry, zMaterial);
+        mainGroupRef.current.add(zAxis);
+
         sceneRef.current.add(mainGroupRef.current);
     };
 

@@ -53,13 +53,25 @@ const InputGroup = styled.div`
     gap: 4px;
 `;
 
-const InputLabel = styled.div`
+const InputLabel = styled.div<{ axis: "x" | "y" | "z" }>`
     font-size: 10px;
-    opacity: 0.6;
+    opacity: 0.8;
     text-align: center;
-    font-weight: 500;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    color: ${(props) => {
+        switch (props.axis) {
+            case "x":
+                return "#ff2222"; // Bright Red
+            case "y":
+                return "#22ff22"; // Bright Green
+            case "z":
+                return "#2222ff"; // Bright Blue
+            default:
+                return "#e6e9ef";
+        }
+    }};
 `;
 
 const Label = styled.div`
@@ -138,7 +150,7 @@ export function Inspector() {
             <Label>Position</Label>
             <Row>
                 <InputGroup>
-                    <InputLabel>X</InputLabel>
+                    <InputLabel axis="x">X</InputLabel>
                     <Input
                         type="number"
                         step="0.1"
@@ -151,7 +163,7 @@ export function Inspector() {
                     />
                 </InputGroup>
                 <InputGroup>
-                    <InputLabel>Y</InputLabel>
+                    <InputLabel axis="y">Y</InputLabel>
                     <Input
                         type="number"
                         step="0.1"
@@ -164,7 +176,7 @@ export function Inspector() {
                     />
                 </InputGroup>
                 <InputGroup>
-                    <InputLabel>Z</InputLabel>
+                    <InputLabel axis="z">Z</InputLabel>
                     <Input
                         type="number"
                         step="0.1"
@@ -180,7 +192,7 @@ export function Inspector() {
             <Label>Rotation</Label>
             <Row>
                 <InputGroup>
-                    <InputLabel>X</InputLabel>
+                    <InputLabel axis="x">X</InputLabel>
                     <Input
                         type="number"
                         step="0.05"
@@ -193,7 +205,7 @@ export function Inspector() {
                     />
                 </InputGroup>
                 <InputGroup>
-                    <InputLabel>Y</InputLabel>
+                    <InputLabel axis="y">Y</InputLabel>
                     <Input
                         type="number"
                         step="0.05"
@@ -206,7 +218,7 @@ export function Inspector() {
                     />
                 </InputGroup>
                 <InputGroup>
-                    <InputLabel>Z</InputLabel>
+                    <InputLabel axis="z">Z</InputLabel>
                     <Input
                         type="number"
                         step="0.05"
@@ -222,7 +234,7 @@ export function Inspector() {
             <Label>Scale</Label>
             <Row>
                 <InputGroup>
-                    <InputLabel>X</InputLabel>
+                    <InputLabel axis="x">X</InputLabel>
                     <Input
                         type="number"
                         step="0.1"
@@ -235,7 +247,7 @@ export function Inspector() {
                     />
                 </InputGroup>
                 <InputGroup>
-                    <InputLabel>Y</InputLabel>
+                    <InputLabel axis="y">Y</InputLabel>
                     <Input
                         type="number"
                         step="0.1"
@@ -248,7 +260,7 @@ export function Inspector() {
                     />
                 </InputGroup>
                 <InputGroup>
-                    <InputLabel>Z</InputLabel>
+                    <InputLabel axis="z">Z</InputLabel>
                     <Input
                         type="number"
                         step="0.1"
