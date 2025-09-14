@@ -1,11 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { WebSocketProvider, useWebSocket } from "../provider/WebSocketContext";
 import { ThreeDProvider } from "../provider/ThreeDContext";
 import Editable3DObject from "./ThreeRenderer";
-import {
-    VideoStreamProvider,
-    useVideoStream,
-} from "../provider/VideoStreamContext";
+import { useVideoStream } from "../provider/VideoStreamContext";
 import { useViewportActions } from "../../provider/ViewportContext";
 import useSkeleton from "../hooks/useSkeleton";
 import type { InteractionState } from "../objects/InteractionState";
@@ -22,7 +19,7 @@ function OverlayInner() {
     const { getConnectionStatus, getData, sendFrame, getAcknowledged } =
         useWebSocket();
     const { videoRef, captureFrame } = useVideoStream();
-    const [status, setStatus] = useState("");
+    const [status, setStatus] = useState("Connecting...");
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const viewportRef = useRef<HTMLDivElement>(null);
     const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -108,7 +105,7 @@ function OverlayInner() {
             const now = performance.now();
             if (now - lastStatusUpdateRef.value > 250) {
                 const s = getConnectionStatus();
-                if (s !== lastStatusRef.value) setStatus(s);
+                // Status tracking removed - video now integrated into chat panel
                 lastStatusRef.value = s;
                 lastStatusUpdateRef.value = now;
             }
@@ -276,14 +273,22 @@ function OverlayInner() {
     // Force rerenders on status changes; data is consumed directly in loop
 
     return (
-        <div style={{ position: "absolute", inset: 0 }}>
+        <div
+            style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: 56,
+                bottom: 0,
+            }}
+        >
             <div
                 ref={viewportRef}
                 style={{
                     position: "absolute",
                     left: 0,
                     right: 0,
-                    top: 56,
+                    top: 0,
                     bottom: 0,
                 }}
             >
@@ -343,9 +348,7 @@ export default function HolohandsOverlay() {
     const wsUrl = "ws://localhost:6969/ws"; // adjust if needed
     return (
         <WebSocketProvider url={wsUrl}>
-            <VideoStreamProvider>
-                <OverlayInner />
-            </VideoStreamProvider>
+            <OverlayInner />
         </WebSocketProvider>
     );
 }

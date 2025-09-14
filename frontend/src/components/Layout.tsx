@@ -9,6 +9,8 @@ import BooleanPanel from "./BooleanPanel";
 import HolohandsOverlay from "../holo/components/HolohandsOverlay";
 import ChatPanel from "./ChatPanel";
 import { useEditor } from "../store/editor";
+import VideoStream from "./VideoStream";
+import { VideoStreamProvider } from "../holo/provider/VideoStreamContext";
 
 const Global = createGlobalStyle`
   html, body, #root {
@@ -40,17 +42,20 @@ export function Layout() {
     useShortcuts();
     const showChat = useEditor(s => s.showChatPanel)
     return (
-        <Root>
-            <Global />
-            <Topbar />
-            {/* Three.js renderer is mounted inside HolohandsOverlay now */}
-            <HolohandsOverlay />
-            <Toolbar />
-            <Inspector />
-            <SnapPanel />
-            <BooleanPanel />
-            {showChat ? <ChatPanel /> : null}
-        </Root>
+        <VideoStreamProvider>
+            <Root>
+                <Global />
+                <Topbar />
+                {/* Three.js renderer is mounted inside HolohandsOverlay now */}
+                <HolohandsOverlay />
+                <Toolbar />
+                <Inspector />
+                <SnapPanel />
+                <BooleanPanel />
+                {showChat ? <ChatPanel /> : null}
+                <VideoStream />
+            </Root>
+        </VideoStreamProvider>
     );
 }
 

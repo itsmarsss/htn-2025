@@ -5,6 +5,7 @@ import React, {
     useEffect,
     useMemo,
     useRef,
+    useState,
 } from "react";
 import type { StreamStatus } from "../types/streamstatus";
 
@@ -13,7 +14,7 @@ interface VideoStreamContextType {
     getAvailableCameras: () => Promise<MediaDeviceInfo[]>;
     captureFrame: () => Promise<ArrayBuffer | null>;
     setActiveCamera: (cameraId: string) => void;
-    getStatus: () => StreamStatus;
+    status: StreamStatus;
     getStream: () => MediaStream | null;
 }
 
@@ -23,20 +24,9 @@ export const VideoStreamProvider: React.FC<{ children: React.ReactNode }> = ({
     children,
 }) => {
     const activeCameraRef = useRef<string | null>(null);
-    const streamStatusRef = useRef<StreamStatus>("idle");
+    const [status, setStatus] = useState<StreamStatus>("idle");
     const streamRef = useRef<MediaStream | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
-
-    useEffect(() => {
-        const init = async () => {
-            const cams = await getAvailableCameras();
-            if (cams.length > 0 && !activeCameraRef.current) {
-                activeCameraRef.current = cams[0].deviceId;
-                startStream(cams[0].deviceId);
-            }
-        };
-        init();
-    }, []);
 
     const getAvailableCameras = useCallback(async (): Promise<
         MediaDeviceInfo[]
@@ -48,32 +38,43 @@ export const VideoStreamProvider: React.FC<{ children: React.ReactNode }> = ({
         return devices.filter((d) => d.kind === "videoinput");
     }, []);
 
-    const startStream = async (deviceId: string) => {
-        stopStream();
-        streamStatusRef.current = "loading";
-        try {
-            const newStream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    deviceId,
-                    width: { ideal: 640 },
-                    height: { ideal: 360 },
-                },
-            });
-            streamRef.current = newStream;
-            if (videoRef.current) videoRef.current.srcObject = newStream;
-            streamStatusRef.current = "streaming";
-        } catch {
-            streamStatusRef.current = "error";
-        }
-    };
-
-    const stopStream = () => {
+    const stopStream = useCallback(() => {
         if (streamRef.current) {
             streamRef.current.getTracks().forEach((t) => t.stop());
             streamRef.current = null;
-            streamStatusRef.current = "stopped";
+            setStatus("stopped");
         }
-    };
+    }, []);
+
+    const startStream = useCallback(
+        async (deviceId: string) => {
+            console.log("startStream called with deviceId:", deviceId);
+            stopStream();
+            setStatus("loading");
+            try {
+                const newStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        deviceId,
+                        width: { ideal: 640 },
+                        height: { ideal: 360 },
+                    },
+                });
+                console.log("Got new stream:", newStream);
+                streamRef.current = newStream;
+                if (videoRef.current) {
+                    console.log("Setting video srcObject");
+                    videoRef.current.srcObject = newStream;
+                    // Ensure the video plays after stream change
+                    videoRef.current.play().catch(console.error);
+                }
+                setStatus("streaming");
+            } catch (error) {
+                console.error("Failed to start stream:", error);
+                setStatus("error");
+            }
+        },
+        [stopStream]
+    );
 
     const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const captureFrame = async (): Promise<ArrayBuffer | null> => {
@@ -101,19 +102,36 @@ export const VideoStreamProvider: React.FC<{ children: React.ReactNode }> = ({
         });
     };
 
+    const setActiveCamera = useCallback(
+        (id: string) => {
+            console.log("setActiveCamera called with:", id);
+            activeCameraRef.current = id;
+            startStream(id);
+        },
+        [startStream]
+    );
+
+    useEffect(() => {
+        const init = async () => {
+            const cams = await getAvailableCameras();
+            if (cams.length > 0 && !activeCameraRef.current) {
+                activeCameraRef.current = cams[0].deviceId;
+                startStream(cams[0].deviceId);
+            }
+        };
+        init();
+    }, [getAvailableCameras, startStream]);
+
     const value = useMemo<VideoStreamContextType>(
         () => ({
             videoRef,
             getAvailableCameras,
             captureFrame,
-            setActiveCamera: (id: string) => {
-                activeCameraRef.current = id;
-                startStream(id);
-            },
-            getStatus: () => streamStatusRef.current,
+            setActiveCamera,
+            status,
             getStream: () => streamRef.current,
         }),
-        []
+        [status, setActiveCamera, getAvailableCameras, captureFrame]
     );
 
     return (
