@@ -7,7 +7,7 @@ import React from "react";
 import { useThreeD } from "../provider/ThreeDContext";
 import { useEditor } from "../../store/editor";
 import type { EditorState, SceneObject } from "../../types";
-import { serializeGeometry } from "../../utils/geometry";
+import { serializeGeometry, deserializeGeometry } from "../../utils/geometry";
 
 interface Editable3DObjectProps {
     interactionStateRef: React.RefObject<InteractionState>;
@@ -82,6 +82,7 @@ function Editable3DObject({
         createSphere,
         registerObject,
         unregisterObject,
+        createShape,
     } = useThreeD();
 
     const editorObjects = useEditor((s) => s.objects);
@@ -532,24 +533,20 @@ function Editable3DObject({
                         0x00ff00
                     );
                 } else {
-                    const geom = buildGeometryForObject(o);
-                    const mat = new THREE.MeshBasicMaterial({
-                        color: new THREE.Color(o.material.color),
-                        opacity: 0.5,
-                        transparent: true,
-                    });
-                    const face = new THREE.Mesh(geom, mat);
-                    face.name = "faceMesh";
-                    const wire = new THREE.LineSegments(
-                        new THREE.WireframeGeometry(geom.clone()),
-                        new THREE.LineBasicMaterial({ color: 0x000000 })
+                    // Use generalized shape creation to add control markers
+                    let geom: THREE.BufferGeometry;
+                    if (o.geometry === "custom") {
+                        const data = o.geometryParams as import("../../types").GeometryParamsMap["custom"] | undefined;
+                        geom = data ? deserializeGeometry(data) : new THREE.BoxGeometry(1, 1, 1);
+                    } else {
+                        geom = buildGeometryForObject(o);
+                    }
+                    group = createShape(
+                        o.id,
+                        geom,
+                        new THREE.Vector3(o.position.x, o.position.y, o.position.z),
+                        0x00ff00
                     );
-                    wire.name = "wireframeMesh";
-                    group = new THREE.Group();
-                    group.name = o.id;
-                    group.add(face);
-                    group.add(wire);
-                    registerObject(o.id, group);
                 }
                 group.name = o.id;  
             }

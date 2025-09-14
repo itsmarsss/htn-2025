@@ -27,6 +27,12 @@ interface ThreeDContextType {
         radius: number,
         faceColor: number
     ) => THREE.Group;
+    createShape: (
+        objectName: string,
+        geometry: THREE.BufferGeometry,
+        position: THREE.Vector3,
+        faceColor: number
+    ) => THREE.Group;
     resetCamera: () => void;
     objectsRef: React.RefObject<{
         [key: string]: THREE.Group<THREE.Object3DEventMap>;
@@ -448,6 +454,105 @@ export const ThreeDProvider: React.FC<{ children: React.ReactNode }> = ({
         return sphereGroup;
     };
 
+    const createShape = (
+        objectName: string,
+        geometry: THREE.BufferGeometry,
+        position: THREE.Vector3,
+        faceColor: number
+    ): THREE.Group => {
+        const geom = geometry.clone();
+        geom.computeVertexNormals();
+
+        const faceMaterial = new THREE.MeshBasicMaterial({
+            color: faceColor,
+            opacity: 0.5,
+            transparent: true,
+        });
+        const faceMesh = new THREE.Mesh(geom, faceMaterial);
+        faceMesh.name = "faceMesh";
+
+        // Deduplicate vertex positions to create control markers
+        const posAttr = geom.getAttribute("position") as THREE.BufferAttribute;
+        const keyToGroup: Record<string, { index: number; position: THREE.Vector3; vertexIndices: number[] }> = {};
+        const epsilon = 1e-4;
+        function keyFor(v: THREE.Vector3): string {
+            return `${Math.round(v.x / epsilon)}_${Math.round(v.y / epsilon)}_${Math.round(v.z / epsilon)}`;
+        }
+        let nextIndex = 0;
+        for (let i = 0; i < posAttr.count; i++) {
+            const v = new THREE.Vector3(
+                posAttr.getX(i),
+                posAttr.getY(i),
+                posAttr.getZ(i)
+            );
+            const k = keyFor(v);
+            if (!keyToGroup[k]) {
+                keyToGroup[k] = { index: nextIndex++, position: v.clone(), vertexIndices: [i] };
+            } else {
+                keyToGroup[k].vertexIndices.push(i);
+            }
+        }
+
+        const markerGroups = Object.values(keyToGroup);
+        for (const g of markerGroups) {
+            const markerMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+            const marker = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), markerMaterial);
+            marker.position.copy(g.position);
+            marker.userData.isControlMarker = true;
+            marker.userData.controlIndex = g.index;
+            faceMesh.add(marker);
+            cornerMarkersRef.current.push(marker);
+        }
+
+        const wireframeGeom = new THREE.WireframeGeometry(geom.clone());
+        const wireframeMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
+        const wireframeMesh = new THREE.LineSegments(wireframeGeom, wireframeMaterial);
+        wireframeMesh.name = "wireframeMesh";
+
+        const group = new THREE.Group();
+        group.name = objectName;
+        group.add(faceMesh);
+        group.add(wireframeMesh);
+        group.position.copy(position);
+
+        // Store mapping for geometry updates
+        (faceMesh.userData as any).positionGroups = markerGroups.map((mg) => ({
+            controlIndex: mg.index,
+            vertexIndices: mg.vertexIndices,
+        }));
+
+        group.userData.updateGeometry = () => {
+            const fm = group.children.find((c) => c.name === "faceMesh") as THREE.Mesh | undefined;
+            const wf = group.children.find((c) => c.name === "wireframeMesh") as THREE.LineSegments | undefined;
+            if (!fm || !fm.geometry) return;
+            const g = fm.geometry as THREE.BufferGeometry;
+            const pos = g.getAttribute("position") as THREE.BufferAttribute;
+            const positionGroups: Array<{ controlIndex: number; vertexIndices: number[] }> = (fm.userData as any).positionGroups || [];
+            // For each control marker, assign its local position to all grouped vertex indices
+            const markers = fm.children.filter((c) => (c as any).userData?.isControlMarker) as THREE.Mesh[];
+            for (const pg of positionGroups) {
+                const m = markers.find((mk) => (mk.userData?.controlIndex === pg.controlIndex));
+                if (!m) continue;
+                const lp = m.position; // local to faceMesh
+                for (const vi of pg.vertexIndices) {
+                    pos.setX(vi, lp.x);
+                    pos.setY(vi, lp.y);
+                    pos.setZ(vi, lp.z);
+                }
+            }
+            pos.needsUpdate = true;
+            g.computeVertexNormals();
+            if (wf) {
+                const newWire = new THREE.WireframeGeometry(g);
+                (wf.geometry as THREE.BufferGeometry).dispose();
+                wf.geometry = newWire;
+            }
+        };
+
+        registerObject(objectName, group);
+        return group;
+    };
+
     const createIcosahedronGeometry = (
         vertices: THREE.Vector3[]
     ): THREE.BufferGeometry => {
@@ -501,6 +606,7 @@ export const ThreeDProvider: React.FC<{ children: React.ReactNode }> = ({
             setupScene,
             createCube,
             createSphere,
+            createShape,
             updateSphereGeometry: updateIcosahedronGeometry,
             resetCamera,
             objectsRef,
