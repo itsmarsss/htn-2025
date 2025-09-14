@@ -105,6 +105,8 @@ export const ThreeDProvider: React.FC<{ children: React.ReactNode }> = ({
 
         // Create an infinite grid by using a large size and positioning it at the camera's height
         const gridHelper = new THREE.GridHelper(1000, 1000);
+        // Set grid color to match the dark theme
+        (gridHelper.material as THREE.LineBasicMaterial).color.setHex(0x3a3d44);
         mainGroupRef.current.add(gridHelper);
 
         sceneRef.current.add(mainGroupRef.current);
@@ -142,7 +144,7 @@ export const ThreeDProvider: React.FC<{ children: React.ReactNode }> = ({
         // Create the face mesh.
         const faceMaterial = new THREE.MeshBasicMaterial({
             color: faceColor,
-            opacity: 0.5,
+            opacity: 0.3,
             transparent: true,
         });
         const hexahredronMesh = new THREE.Mesh(geometry.clone(), faceMaterial);
@@ -151,7 +153,7 @@ export const ThreeDProvider: React.FC<{ children: React.ReactNode }> = ({
         // Add eight corner markers to the face mesh.
         for (let i = 0; i < 8; i++) {
             const markerMaterial = new THREE.MeshBasicMaterial({
-                color: 0x0000ff,
+                color: 0x4a9eff,
             });
             const marker = new THREE.Mesh(
                 new THREE.SphereGeometry(0.05, 8, 8),
@@ -168,7 +170,7 @@ export const ThreeDProvider: React.FC<{ children: React.ReactNode }> = ({
         // Create a wireframe mesh from the same geometry.
         const wireframeGeom = new THREE.WireframeGeometry(geometry.clone());
         const wireframeMaterial = new THREE.LineBasicMaterial({
-            color: 0x000000,
+            color: 0x5a5d64,
         });
         const wireframeMesh = new THREE.LineSegments(
             wireframeGeom,
@@ -399,7 +401,7 @@ export const ThreeDProvider: React.FC<{ children: React.ReactNode }> = ({
         const geometry = createIcosahedronGeometry(vertices);
         const faceMaterial = new THREE.MeshBasicMaterial({
             color: faceColor,
-            opacity: 0.5,
+            opacity: 0.3,
             transparent: true,
         });
         const icosahedronMesh = new THREE.Mesh(geometry, faceMaterial);
@@ -408,7 +410,7 @@ export const ThreeDProvider: React.FC<{ children: React.ReactNode }> = ({
         // Create control markers for each of the 12 vertices.
         for (let i = 0; i < 12; i++) {
             const markerMaterial = new THREE.MeshBasicMaterial({
-                color: 0xff0000,
+                color: 0xff6b6b,
             });
             const marker = new THREE.Mesh(
                 new THREE.SphereGeometry(0.05, 8, 8),
@@ -423,7 +425,7 @@ export const ThreeDProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const wireframeGeom = new THREE.WireframeGeometry(geometry.clone());
         const wireframeMaterial = new THREE.LineBasicMaterial({
-            color: 0x000000,
+            color: 0x5a5d64,
         });
         const wireframeMesh = new THREE.LineSegments(
             wireframeGeom,
@@ -473,10 +475,15 @@ export const ThreeDProvider: React.FC<{ children: React.ReactNode }> = ({
 
         // Deduplicate vertex positions to create control markers
         const posAttr = geom.getAttribute("position") as THREE.BufferAttribute;
-        const keyToGroup: Record<string, { index: number; position: THREE.Vector3; vertexIndices: number[] }> = {};
+        const keyToGroup: Record<
+            string,
+            { index: number; position: THREE.Vector3; vertexIndices: number[] }
+        > = {};
         const epsilon = 1e-4;
         function keyFor(v: THREE.Vector3): string {
-            return `${Math.round(v.x / epsilon)}_${Math.round(v.y / epsilon)}_${Math.round(v.z / epsilon)}`;
+            return `${Math.round(v.x / epsilon)}_${Math.round(
+                v.y / epsilon
+            )}_${Math.round(v.z / epsilon)}`;
         }
         let nextIndex = 0;
         for (let i = 0; i < posAttr.count; i++) {
@@ -487,7 +494,11 @@ export const ThreeDProvider: React.FC<{ children: React.ReactNode }> = ({
             );
             const k = keyFor(v);
             if (!keyToGroup[k]) {
-                keyToGroup[k] = { index: nextIndex++, position: v.clone(), vertexIndices: [i] };
+                keyToGroup[k] = {
+                    index: nextIndex++,
+                    position: v.clone(),
+                    vertexIndices: [i],
+                };
             } else {
                 keyToGroup[k].vertexIndices.push(i);
             }
@@ -495,8 +506,13 @@ export const ThreeDProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const markerGroups = Object.values(keyToGroup);
         for (const g of markerGroups) {
-            const markerMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-            const marker = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), markerMaterial);
+            const markerMaterial = new THREE.MeshBasicMaterial({
+                color: 0x0000ff,
+            });
+            const marker = new THREE.Mesh(
+                new THREE.SphereGeometry(0.05, 8, 8),
+                markerMaterial
+            );
             marker.position.copy(g.position);
             marker.userData.isControlMarker = true;
             marker.userData.controlIndex = g.index;
@@ -505,8 +521,13 @@ export const ThreeDProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         const wireframeGeom = new THREE.WireframeGeometry(geom.clone());
-        const wireframeMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
-        const wireframeMesh = new THREE.LineSegments(wireframeGeom, wireframeMaterial);
+        const wireframeMaterial = new THREE.LineBasicMaterial({
+            color: 0x000000,
+        });
+        const wireframeMesh = new THREE.LineSegments(
+            wireframeGeom,
+            wireframeMaterial
+        );
         wireframeMesh.name = "wireframeMesh";
 
         const group = new THREE.Group();
@@ -522,16 +543,27 @@ export const ThreeDProvider: React.FC<{ children: React.ReactNode }> = ({
         }));
 
         group.userData.updateGeometry = () => {
-            const fm = group.children.find((c) => c.name === "faceMesh") as THREE.Mesh | undefined;
-            const wf = group.children.find((c) => c.name === "wireframeMesh") as THREE.LineSegments | undefined;
+            const fm = group.children.find((c) => c.name === "faceMesh") as
+                | THREE.Mesh
+                | undefined;
+            const wf = group.children.find(
+                (c) => c.name === "wireframeMesh"
+            ) as THREE.LineSegments | undefined;
             if (!fm || !fm.geometry) return;
             const g = fm.geometry as THREE.BufferGeometry;
             const pos = g.getAttribute("position") as THREE.BufferAttribute;
-            const positionGroups: Array<{ controlIndex: number; vertexIndices: number[] }> = (fm.userData as any).positionGroups || [];
+            const positionGroups: Array<{
+                controlIndex: number;
+                vertexIndices: number[];
+            }> = (fm.userData as any).positionGroups || [];
             // For each control marker, assign its local position to all grouped vertex indices
-            const markers = fm.children.filter((c) => (c as any).userData?.isControlMarker) as THREE.Mesh[];
+            const markers = fm.children.filter(
+                (c) => (c as any).userData?.isControlMarker
+            ) as THREE.Mesh[];
             for (const pg of positionGroups) {
-                const m = markers.find((mk) => (mk.userData?.controlIndex === pg.controlIndex));
+                const m = markers.find(
+                    (mk) => mk.userData?.controlIndex === pg.controlIndex
+                );
                 if (!m) continue;
                 const lp = m.position; // local to faceMesh
                 for (const vi of pg.vertexIndices) {
