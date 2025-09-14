@@ -19,14 +19,10 @@ app.use((req, res, next) => {
 function getLlms() {
   const martianKey = process.env.MARTIAN_API_KEY || process.env.VITE_MARTIAN_API_KEY
   const martianBase = process.env.MARTIAN_BASE_URL || 'https://api.withmartian.com/v1'
-  const openaiKey = process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY
-  const openaiBase = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'
+
   if (martianKey) {
     return { provider: 'martian', baseUrl: martianBase, apiKey: martianKey, model: process.env.MARTIAN_MODEL || process.env.LLM_MODEL || 'openai/gpt-4.1-nano' }
   }
-//   if (openaiKey) {
-//     return { provider: 'openai', baseUrl: openaiBase, apiKey: openaiKey, model: process.env.OPENAI_MODEL || process.env.LLM_MODEL || 'gpt-4o-mini' }
-//   }
   return null
 }
 
