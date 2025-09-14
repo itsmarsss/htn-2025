@@ -27,8 +27,8 @@ export function buildSceneFromObjects(objects: SceneObject[]): THREE.Scene {
                     | undefined;
                 geometry = new THREE.SphereGeometry(
                     p?.radius ?? 0.5,
-                    p?.widthSegments ?? 64,
-                    p?.heightSegments ?? 64
+                    p?.widthSegments ?? 8,
+                    p?.heightSegments ?? 8
                 );
                 break;
             }

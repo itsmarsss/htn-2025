@@ -49,7 +49,7 @@ function buildGeometryFromObject(o: SceneObject): THREE.BufferGeometry {
             const p = o.geometryParams as
                 | GeometryParamsMap["sphere"]
                 | undefined;
-            return new THREE.SphereGeometry(p?.radius ?? 0.5, 64, 32);
+            return new THREE.SphereGeometry(p?.radius ?? 0.5, 8, 8);
         }
         case "cylinder": {
             const p = o.geometryParams as

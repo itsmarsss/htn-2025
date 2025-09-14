@@ -118,8 +118,8 @@ function RenderObject({
                     <sphereGeometry
                         args={[
                             p?.radius ?? 0.5,
-                            p?.widthSegments ?? 64,
-                            p?.heightSegments ?? 32,
+                            p?.widthSegments ?? 8,
+                            p?.heightSegments ?? 8,
                         ]}
                     />
                 );

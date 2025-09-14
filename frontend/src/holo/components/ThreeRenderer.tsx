@@ -517,8 +517,8 @@ function Editable3DObject({
                     | undefined;
                 return new THREE.SphereGeometry(
                     p?.radius ?? 0.5,
-                    p?.widthSegments ?? 64,
-                    p?.heightSegments ?? 32
+                    p?.widthSegments ?? 8,
+                    p?.heightSegments ?? 8
                 );
             }
             case "cylinder": {
@@ -588,20 +588,6 @@ function Editable3DObject({
                             o.position.y,
                             o.position.z
                         ),
-                        0x00ff00
-                    );
-                } else if (createSphere && o.geometry === "sphere") {
-                    const p = o.geometryParams as
-                        | import("../../types").GeometryParamsMap["sphere"]
-                        | undefined;
-                    group = createSphere(
-                        o.id,
-                        new THREE.Vector3(
-                            o.position.x,
-                            o.position.y,
-                            o.position.z
-                        ),
-                        p?.radius ?? 0.5,
                         0x00ff00
                     );
                 } else {
