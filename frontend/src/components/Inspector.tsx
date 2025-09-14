@@ -15,6 +15,30 @@ const Panel = styled.div`
   overflow: auto;
 `
 
+const Header = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+`
+
+const Title = styled.div`
+  font-weight: 600;
+  opacity: 0.9;
+`
+
+const CloseButton = styled.button`
+  background: #12141a;
+  color: #e6e9ef;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+`
+
 const Row = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -46,7 +70,15 @@ export function Inspector() {
   if (!obj) return null
 
   return (
-    <Panel>
+    <Panel data-inspector-panel>
+      <Header>
+        <Title>Inspector</Title>
+        <CloseButton onClick={() => {
+          const panel = document.querySelector('[data-inspector-panel]') as HTMLElement;
+          if (panel) panel.style.display = 'none';
+        }}>✕</CloseButton>
+      </Header>
+      
       <Label>Transform</Label>
       <Row>
         <Input type="number" step="0.1" value={obj.position.x} onChange={(e) => updateTransform(obj.id, { position: { x: parseFloat(e.target.value) } })} />

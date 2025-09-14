@@ -22,7 +22,7 @@ function OverlayInner() {
     const { getConnectionStatus, getData, sendFrame, getAcknowledged } =
         useWebSocket();
     const { videoRef, captureFrame } = useVideoStream();
-    const [status, setStatus] = useState("Connecting...");
+    const [status, setStatus] = useState("");
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const viewportRef = useRef<HTMLDivElement>(null);
     const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -295,7 +295,7 @@ function OverlayInner() {
                 <div
                     style={{
                         position: "absolute",
-                        right: 12,
+                        left: 12,
                         top: 8,
                         zIndex: 20,
                         display: "flex",

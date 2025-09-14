@@ -12,6 +12,14 @@ export function useShortcuts() {
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.target && (e.target as HTMLElement).tagName === 'INPUT') return
+      
+      // Command/Ctrl + L to show chat panel
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'l') {
+        e.preventDefault()
+        try { (useEditor as any).setState((s: any) => ({ ...s, showChatPanel: true })); } catch {}
+        return
+      }
+      
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault()
         if (e.shiftKey) redo(); else undo();

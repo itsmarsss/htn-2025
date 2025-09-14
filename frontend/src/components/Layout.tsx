@@ -8,6 +8,7 @@ import SnapPanel from "./SnapPanel";
 import BooleanPanel from "./BooleanPanel";
 import HolohandsOverlay from "../holo/components/HolohandsOverlay";
 import ChatPanel from "./ChatPanel";
+import { useEditor } from "../store/editor";
 
 const Global = createGlobalStyle`
   html, body, #root {
@@ -37,6 +38,7 @@ const Root = styled.div`
 
 export function Layout() {
     useShortcuts();
+    const showChat = useEditor(s => s.showChatPanel)
     return (
         <Root>
             <Global />
@@ -47,7 +49,7 @@ export function Layout() {
             <Inspector />
             <SnapPanel />
             <BooleanPanel />
-            <ChatPanel />
+            {showChat ? <ChatPanel /> : null}
         </Root>
     );
 }

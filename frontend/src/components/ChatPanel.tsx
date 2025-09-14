@@ -18,6 +18,7 @@ const Panel = styled.div`
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  z-index: 50;
 `
 
 const Header = styled.div`
@@ -530,12 +531,16 @@ export function ChatPanel() {
   }
 
   return (
-    <Panel>
+    <Panel data-chat-panel>
       <Header>
         <div>Chat</div>
         <div style={{ display: 'flex', gap: 6 }}>
           <Toggle onClick={() => setUsingLLM(v => !v)}>{usingLLM ? 'LLM: On' : 'LLM: Off'}</Toggle>
           <Toggle onClick={() => setShowHistory(v => !v)}>{showHistory ? 'Hide' : 'Show'} History</Toggle>
+          <Toggle onClick={() => {
+            // Hide via global store so layout unmounts the panel
+            try { (useEditor as any).setState((s: any) => ({ ...s, showChatPanel: false })); } catch {}
+          }}>✕</Toggle>
         </div>
       </Header>
       {showHistory && (
