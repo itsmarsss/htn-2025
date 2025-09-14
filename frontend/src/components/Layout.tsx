@@ -8,6 +8,7 @@ import SnapPanel from "./SnapPanel";
 import BooleanPanel from "./BooleanPanel";
 import HolohandsOverlay from "../holo/components/HolohandsOverlay";
 import ChatPanel from "./ChatPanel";
+import VideoStream from "./VideoStream";
 import { VideoStreamProvider } from "../holo/provider/VideoStreamContext";
 
 const Global = createGlobalStyle`
@@ -50,6 +51,7 @@ export function Layout() {
                 <SnapPanel />
                 <BooleanPanel />
                 <ChatPanel />
+                <VideoStream />
             </Root>
         </VideoStreamProvider>
     );
