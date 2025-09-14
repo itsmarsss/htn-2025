@@ -520,8 +520,6 @@ export function ChatPanel() {
       return
     }
 
-    sys = 'Sorry, I did not understand. Try commands like: add box; move x 1; rotate y 45; scale 1.5; color #ff00ff; delete; duplicate; select Sphere; union A B; undo'
-    push('system', sys)
   }
 
   function onSubmit(e: React.FormEvent) {
