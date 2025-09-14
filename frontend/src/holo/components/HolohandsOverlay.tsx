@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { WebSocketProvider, useWebSocket } from "../provider/WebSocketContext";
 import { ThreeDProvider } from "../provider/ThreeDContext";
 import Editable3DObject from "./ThreeRenderer";
@@ -19,7 +19,7 @@ function OverlayInner() {
     const { getConnectionStatus, getData, sendFrame, getAcknowledged } =
         useWebSocket();
     const { videoRef, captureFrame } = useVideoStream();
-    const [status, setStatus] = useState("Connecting...");
+    const [status, setStatus] = useState("");
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const viewportRef = useRef<HTMLDivElement>(null);
     const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
