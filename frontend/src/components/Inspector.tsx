@@ -47,6 +47,21 @@ const Row = styled.div`
     margin-bottom: 10px;
 `;
 
+const InputGroup = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+`;
+
+const InputLabel = styled.div`
+    font-size: 10px;
+    opacity: 0.6;
+    text-align: center;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+`;
+
 const Label = styled.div`
     opacity: 0.7;
     margin: 8px 0 6px;
@@ -120,102 +135,131 @@ export function Inspector() {
                 </CloseButton>
             </Header>
 
-            <Label>Transform</Label>
+            <Label>Position</Label>
             <Row>
-                <Input
-                    type="number"
-                    step="0.1"
-                    value={obj.position.x}
-                    onChange={(e) =>
-                        updateTransform(obj.id, {
-                            position: { x: parseFloat(e.target.value) },
-                        })
-                    }
-                />
-                <Input
-                    type="number"
-                    step="0.1"
-                    value={obj.position.y}
-                    onChange={(e) =>
-                        updateTransform(obj.id, {
-                            position: { y: parseFloat(e.target.value) },
-                        })
-                    }
-                />
-                <Input
-                    type="number"
-                    step="0.1"
-                    value={obj.position.z}
-                    onChange={(e) =>
-                        updateTransform(obj.id, {
-                            position: { z: parseFloat(e.target.value) },
-                        })
-                    }
-                />
+                <InputGroup>
+                    <InputLabel>X</InputLabel>
+                    <Input
+                        type="number"
+                        step="0.1"
+                        value={obj.position.x}
+                        onChange={(e) =>
+                            updateTransform(obj.id, {
+                                position: { x: parseFloat(e.target.value) },
+                            })
+                        }
+                    />
+                </InputGroup>
+                <InputGroup>
+                    <InputLabel>Y</InputLabel>
+                    <Input
+                        type="number"
+                        step="0.1"
+                        value={obj.position.y}
+                        onChange={(e) =>
+                            updateTransform(obj.id, {
+                                position: { y: parseFloat(e.target.value) },
+                            })
+                        }
+                    />
+                </InputGroup>
+                <InputGroup>
+                    <InputLabel>Z</InputLabel>
+                    <Input
+                        type="number"
+                        step="0.1"
+                        value={obj.position.z}
+                        onChange={(e) =>
+                            updateTransform(obj.id, {
+                                position: { z: parseFloat(e.target.value) },
+                            })
+                        }
+                    />
+                </InputGroup>
             </Row>
+            <Label>Rotation</Label>
             <Row>
-                <Input
-                    type="number"
-                    step="0.05"
-                    value={obj.rotation.x}
-                    onChange={(e) =>
-                        updateTransform(obj.id, {
-                            rotation: { x: parseFloat(e.target.value) },
-                        })
-                    }
-                />
-                <Input
-                    type="number"
-                    step="0.05"
-                    value={obj.rotation.y}
-                    onChange={(e) =>
-                        updateTransform(obj.id, {
-                            rotation: { y: parseFloat(e.target.value) },
-                        })
-                    }
-                />
-                <Input
-                    type="number"
-                    step="0.05"
-                    value={obj.rotation.z}
-                    onChange={(e) =>
-                        updateTransform(obj.id, {
-                            rotation: { z: parseFloat(e.target.value) },
-                        })
-                    }
-                />
+                <InputGroup>
+                    <InputLabel>X</InputLabel>
+                    <Input
+                        type="number"
+                        step="0.05"
+                        value={obj.rotation.x}
+                        onChange={(e) =>
+                            updateTransform(obj.id, {
+                                rotation: { x: parseFloat(e.target.value) },
+                            })
+                        }
+                    />
+                </InputGroup>
+                <InputGroup>
+                    <InputLabel>Y</InputLabel>
+                    <Input
+                        type="number"
+                        step="0.05"
+                        value={obj.rotation.y}
+                        onChange={(e) =>
+                            updateTransform(obj.id, {
+                                rotation: { y: parseFloat(e.target.value) },
+                            })
+                        }
+                    />
+                </InputGroup>
+                <InputGroup>
+                    <InputLabel>Z</InputLabel>
+                    <Input
+                        type="number"
+                        step="0.05"
+                        value={obj.rotation.z}
+                        onChange={(e) =>
+                            updateTransform(obj.id, {
+                                rotation: { z: parseFloat(e.target.value) },
+                            })
+                        }
+                    />
+                </InputGroup>
             </Row>
+            <Label>Scale</Label>
             <Row>
-                <Input
-                    type="number"
-                    step="0.1"
-                    value={obj.scale.x}
-                    onChange={(e) =>
-                        updateTransform(obj.id, {
-                            scale: { x: parseFloat(e.target.value) },
-                        })
-                    }
-                />
-                <Input
-                    type="number"
-                    step="0.1"
-                    value={obj.scale.y}
-                    onChange={(e) =>
-                        updateTransform(obj.id, {
-                            scale: { y: parseFloat(e.target.value) },
-                        })
-                    }
-                />
-                <Input
-                    type="number"
-                    step="0.1"
-                    value={obj.scale.z}
-                    onChange={(e) =>
-                        updateTransform(obj.id, {
-                            scale: { z: parseFloat(e.target.value) },
-                        })
-                    }
-                />
+                <InputGroup>
+                    <InputLabel>X</InputLabel>
+                    <Input
+                        type="number"
+                        step="0.1"
+                        value={obj.scale.x}
+                        onChange={(e) =>
+                            updateTransform(obj.id, {
+                                scale: { x: parseFloat(e.target.value) },
+                            })
+                        }
+                    />
+                </InputGroup>
+                <InputGroup>
+                    <InputLabel>Y</InputLabel>
+                    <Input
+                        type="number"
+                        step="0.1"
+                        value={obj.scale.y}
+                        onChange={(e) =>
+                            updateTransform(obj.id, {
+                                scale: { y: parseFloat(e.target.value) },
+                            })
+                        }
+                    />
+                </InputGroup>
+                <InputGroup>
+                    <InputLabel>Z</InputLabel>
+                    <Input
+                        type="number"
+                        step="0.1"
+                        value={obj.scale.z}
+                        onChange={(e) =>
+                            updateTransform(obj.id, {
+                                scale: { z: parseFloat(e.target.value) },
+                            })
+                        }
+                    />
+                </InputGroup>
             </Row>
 
             <Label>Material</Label>
