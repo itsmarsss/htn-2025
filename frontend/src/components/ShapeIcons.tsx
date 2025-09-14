@@ -10,19 +10,54 @@ export const BoxIcon: React.FC<ShapeIconProps> = ({
     color = "#e6e9ef",
 }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        {/* 3D Box with perspective */}
-        <path
-            d="M3 7L12 2L21 7V17L12 22L3 17V7Z"
+        {/* 3D Cube with proper perspective */}
+        {/* Front face */}
+        <rect
+            x="6"
+            y="8"
+            width="8"
+            height="8"
             stroke={color}
             strokeWidth="1.5"
             fill="none"
         />
         {/* Top face */}
-        <path d="M3 7L12 2L21 7" stroke={color} strokeWidth="1.5" fill="none" />
+        <path
+            d="M6 8L10 4L18 4L14 8"
+            stroke={color}
+            strokeWidth="1.5"
+            fill="none"
+        />
         {/* Right face */}
-        <path d="M21 7V17L12 22" stroke={color} strokeWidth="1.5" fill="none" />
+        <path
+            d="M14 8L18 4L18 12L14 16"
+            stroke={color}
+            strokeWidth="1.5"
+            fill="none"
+        />
+        {/* Bottom face */}
+        <path
+            d="M6 16L10 12L18 12L14 16"
+            stroke={color}
+            strokeWidth="1.5"
+            fill="none"
+        />
         {/* Left face */}
-        <path d="M3 7V17L12 22" stroke={color} strokeWidth="1.5" fill="none" />
+        <path
+            d="M6 8L6 16L10 12L10 4"
+            stroke={color}
+            strokeWidth="1.5"
+            fill="none"
+        />
+        {/* Back face (dashed for depth) */}
+        <path
+            d="M10 4L18 4L18 12L10 12Z"
+            stroke={color}
+            strokeWidth="1"
+            fill="none"
+            opacity="0.4"
+            strokeDasharray="2,2"
+        />
     </svg>
 );
 
@@ -213,37 +248,76 @@ export const PlaneIcon: React.FC<ShapeIconProps> = ({
     color = "#e6e9ef",
 }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        {/* 3D Plane with perspective */}
+        {/* Flat plane - main rectangle */}
         <rect
             x="4"
-            y="8"
+            y="10"
             width="16"
-            height="8"
+            height="4"
             stroke={color}
             strokeWidth="1.5"
             fill="none"
         />
-        {/* Top face */}
-        <path
-            d="M4 8L8 4L20 4L16 8"
+        {/* Grid lines to show it's a flat surface */}
+        <line
+            x1="6"
+            y1="10"
+            x2="6"
+            y2="14"
             stroke={color}
-            strokeWidth="1.5"
-            fill="none"
+            strokeWidth="1"
+            opacity="0.6"
         />
-        {/* Right face */}
-        <path
-            d="M20 4L20 12L16 16L16 8"
+        <line
+            x1="10"
+            y1="10"
+            x2="10"
+            y2="14"
             stroke={color}
-            strokeWidth="1.5"
-            fill="none"
+            strokeWidth="1"
+            opacity="0.6"
         />
-        {/* Left face */}
-        <path
-            d="M8 4L8 12L4 16L4 8"
+        <line
+            x1="14"
+            y1="10"
+            x2="14"
+            y2="14"
             stroke={color}
-            strokeWidth="1.5"
-            fill="none"
+            strokeWidth="1"
+            opacity="0.6"
         />
+        <line
+            x1="18"
+            y1="10"
+            x2="18"
+            y2="14"
+            stroke={color}
+            strokeWidth="1"
+            opacity="0.6"
+        />
+        <line
+            x1="4"
+            y1="11"
+            x2="20"
+            y2="11"
+            stroke={color}
+            strokeWidth="1"
+            opacity="0.6"
+        />
+        <line
+            x1="4"
+            y1="13"
+            x2="20"
+            y2="13"
+            stroke={color}
+            strokeWidth="1"
+            opacity="0.6"
+        />
+        {/* Corner indicators to show it's flat */}
+        <circle cx="4" cy="10" r="1" fill={color} opacity="0.8" />
+        <circle cx="20" cy="10" r="1" fill={color} opacity="0.8" />
+        <circle cx="4" cy="14" r="1" fill={color} opacity="0.8" />
+        <circle cx="20" cy="14" r="1" fill={color} opacity="0.8" />
     </svg>
 );
 
