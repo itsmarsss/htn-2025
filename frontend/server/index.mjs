@@ -7,7 +7,7 @@ dotenv.config()
 const app = express()
 const PORT = process.env.PORT || 8787
 
-app.use(express.json({ limit: '1mb' }))
+app.use(express.json({ limit: '20mb' }))
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
@@ -22,6 +22,12 @@ function getLlms() {
 
   if (martianKey) {
     return { provider: 'martian', baseUrl: martianBase, apiKey: martianKey, model: process.env.MARTIAN_MODEL || process.env.LLM_MODEL || 'openai/gpt-4.1-nano' }
+  }
+
+  const openaiKey = process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY
+  const openaiBase = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'
+  if (openaiKey) {
+    return { provider: 'openai', baseUrl: openaiBase, apiKey: openaiKey, model: process.env.OPENAI_MODEL || process.env.LLM_MODEL || 'gpt-4o-mini' }
   }
   return null
 }
@@ -40,6 +46,10 @@ const tools = [
   { type: 'function', function: { name: 'toggleSnap', parameters: { type: 'object', properties: { enabled: { type: 'boolean' } }, required: ['enabled'] } } },
   { type: 'function', function: { name: 'setSnap', parameters: { type: 'object', properties: { translateSnap: { type: 'number' }, rotateSnap: { type: 'number' }, scaleSnap: { type: 'number' } } } } },
   { type: 'function', function: { name: 'setMode', parameters: { type: 'object', properties: { mode: { type: 'string', enum: ['translate', 'rotate', 'scale'] } }, required: ['mode'] } } },
+  { type: 'function', function: { name: 'updateName', description: 'Rename an object', parameters: { type: 'object', properties: { id: { type: 'string' }, name: { type: 'string' } }, required: ['name'] } } },
+  { type: 'function', function: { name: 'cloneGrid', description: 'Clone the target object into a 2D/3D grid of copies', parameters: { type: 'object', properties: { id: { type: 'string', description: 'If omitted, applies to currently selected object' }, countX: { type: 'integer', minimum: 1, default: 1 }, countY: { type: 'integer', minimum: 1, default: 1 }, countZ: { type: 'integer', minimum: 1, default: 1 }, spacingX: { type: 'number', default: 1 }, spacingY: { type: 'number', default: 1 }, spacingZ: { type: 'number', default: 1 } } } } },
+  { type: 'function', function: { name: 'importGLTFFromAttachment', description: 'Import a GLTF/GLB model from the user attachment', parameters: { type: 'object', properties: {} } } },
+  { type: 'function', function: { name: 'importGLTFByUrl', description: 'Import a GLTF/GLB model from a URL', parameters: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] } } },
 ]
 
 const systemPrompt = `You are a 3D modeling copilot. Use the provided tools to carry out user requests in a precise, deterministic way.
@@ -47,6 +57,24 @@ const systemPrompt = `You are a 3D modeling copilot. Use the provided tools to c
 - Units: position/scale in editor units. Rotation is in radians; if the user gives degrees, convert to radians.
 - If the user asks to "move/rotate/scale by" amounts, use isDelta: true.
 - When the user refers to objects by name, assume exact match on existing scene object names if provided in context.
+- If an image is provided in the user message, use it as visual context to ground your actions (e.g., infer colors, shapes, or layout), but still express changes via tool calls.
+- You can also rename objects and create grids of copies using updateName and cloneGrid.
+- If the user attaches a .glb/.gltf or provides a URL, import it using importGLTFFromAttachment or importGLTFByUrl.
+
+Examples:
+User: "Make a table with a thin rectangular top around 1.6 by 0.9, and four thin legs 0.7 tall at the corners"
+Assistant (tools in order):
+1) addObject {"kind":"box","params":{"width":1.6,"height":0.08,"depth":0.9}}
+2) updateName {"name":"TableTop"}
+3) updateTransform {"isDelta":false,"position":{"x":0,"y":0.75,"z":0}}
+4) addObject {"kind":"cylinder","params":{"radiusTop":0.05,"radiusBottom":0.05,"height":0.7}}
+5) updateName {"name":"Leg"}
+6) updateTransform {"isDelta":false,"position":{"x":-0.75,"y":0.35,"z":-0.45}}
+7) cloneGrid {"countX":2,"countZ":2,"spacingX":1.5,"spacingZ":0.9}
+
+User: "Use this image for the color scheme" [image]
+Assistant: updateMaterial {"id":"<selectedOrLast>","color":"#8b5a2b"}
+
 Only produce natural language when no tool call is appropriate.`
 
 app.get('/api/health', (req, res) => {
@@ -56,15 +84,35 @@ app.get('/api/health', (req, res) => {
 
 app.post('/api/chat', async (req, res) => {
   const llm = getLlms()
-  if (!llm) return res.status(500).json({ error: 'No LLM API key configured. Set MARTIAN_API_KEY (+ optional MARTIAN_BASE_URL) or OPENAI_API_KEY.' })
+  if (!llm) return res.status(500).json({ error: 'No LLM API key configured. Set MARTIAN_API_KEY (+ optional MARTIAN_BASE_URL) or OPENAI_API_KEY (+ optional OPENAI_BASE_URL).' })
 
-  const { user, sceneSummary } = req.body || {}
+  const { user, sceneSummary, attachment } = req.body || {}
   if (!user || typeof user !== 'string') return res.status(400).json({ error: 'Missing user prompt' })
+
+  // Build multimodal user content when an image is attached
+  let userContent = user
+  if (attachment && typeof attachment === 'object') {
+    const name = attachment.name || 'file'
+    const type = attachment.type || ''
+    const size = typeof attachment.size === 'number' ? attachment.size : undefined
+    const data = attachment.data
+
+    if (type && /^image\//.test(type) && data && typeof data === 'string') {
+      const dataUrl = `data:${type};base64,${data}`
+      userContent = [
+        { type: 'text', text: user },
+        { type: 'image_url', image_url: { url: dataUrl } }
+      ]
+    } else {
+      const attachmentInfo = `[Attachment: ${name}${type ? `, ${type}` : ''}${size ? `, ${size} bytes` : ''}]`
+      userContent = `${user}\n\n${attachmentInfo}`
+    }
+  }
 
   const messages = [
     { role: 'system', content: systemPrompt },
     sceneSummary ? { role: 'system', content: `Scene: ${sceneSummary}` } : null,
-    { role: 'user', content: user }
+    { role: 'user', content: userContent }
   ].filter(Boolean)
 
   const url = `${llm.baseUrl.replace(/\/$/, '')}/chat/completions`

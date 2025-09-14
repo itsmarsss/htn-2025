@@ -2,6 +2,7 @@ import styled from "styled-components";
 import { useMemo, useRef, useState } from "react";
 import { useEditor } from "../store/editor";
 import type { GeometryKind, SceneObject } from "../types";
+import { importObjectsFromGLTF } from "../utils/io";
 
 const SERVER_URL =
     (import.meta as any).env?.VITE_SERVER_URL ?? "http://localhost:8787";
@@ -185,6 +186,8 @@ export function ChatPanel() {
     const updateTransform = useEditor((s) => s.updateTransform);
     const updateMaterial = useEditor((s) => s.updateMaterial);
     const updateGeometry = useEditor((s) => s.updateGeometry);
+    const updateName = useEditor((s) => s.updateName);
+    const addSceneObjects = useEditor((s) => (s as any).addSceneObjects);
     const booleanOp = useEditor((s) => s.booleanOp);
     const undo = useEditor((s) => s.undo);
     const redo = useEditor((s) => s.redo);
@@ -222,7 +225,7 @@ export function ChatPanel() {
                             2
                         )},${o.position.y.toFixed(2)},${o.position.z.toFixed(
                             2
-                        )})`
+                        )}) rot=(${o.rotation.x.toFixed(2)},${o.rotation.y.toFixed(2)},${o.rotation.z.toFixed(2)}) scale=(${o.scale.x.toFixed(2)},${o.scale.y.toFixed(2)},${o.scale.z.toFixed(2)}) color=${o.material.color}`
                 )
                 .join("; ");
 
@@ -249,159 +252,275 @@ export function ChatPanel() {
             const msg = data?.choices?.[0]?.message;
             if (!msg) return { executed: false, reply: "No response" };
 
-            // If tool call present
-            const tool = msg?.tool_calls?.[0];
-            if (tool?.function?.name) {
-                const name = tool.function.name as string;
-                let args: any = {};
-                try {
-                    args = tool.function.arguments
-                        ? JSON.parse(tool.function.arguments)
-                        : {};
-                } catch {}
+            // If tool call(s) present
+            const toolCalls = Array.isArray(msg?.tool_calls) ? msg.tool_calls : [];
+            if (toolCalls.length > 0) {
+                let executedAny = false;
+                const replies: string[] = [];
 
-                // map tools to store actions
-                if (name === "addObject") {
-                    addObject(args.kind as GeometryKind, args.params);
-                    return { executed: true, reply: `Added ${args.kind}` };
-                }
-                if (name === "selectObject") {
-                    const t = String(args.target || "");
-                    const found = objects.find(
-                        (o) => o.id === t || o.name === t
-                    );
-                    if (found) {
-                        select(found.id);
-                        return {
-                            executed: true,
-                            reply: `Selected ${found.name}`,
-                        };
+                for (const tool of toolCalls) {
+                    if (!tool?.function?.name) continue;
+                    const name = tool.function.name as string;
+                    let args: any = {};
+                    try {
+                        args = tool.function.arguments
+                            ? JSON.parse(tool.function.arguments)
+                            : {};
+                    } catch {}
+
+                    // map tools to store actions
+                    if (name === "addObject") {
+                        addObject(args.kind as GeometryKind, args.params);
+                        executedAny = true;
+                        replies.push(`Added ${args.kind}`);
+                        continue;
                     }
-                    return { executed: false, reply: `Object not found: ${t}` };
+                    if (name === "selectObject") {
+                        const t = String(args.target || "");
+                        const found = objects.find(
+                            (o) => o.id === t || o.name === t
+                        );
+                        if (found) {
+                            select(found.id);
+                            executedAny = true;
+                            replies.push(`Selected ${found.name}`);
+                        } else {
+                            replies.push(`Object not found: ${t}`);
+                        }
+                        continue;
+                    }
+                    if (name === "updateTransform") {
+                        const id = args.id || selectedId;
+                        if (!id) {
+                            replies.push("No target for transform");
+                            continue;
+                        }
+                        const obj = objects.find((o) => o.id === id);
+                        if (!obj) {
+                            replies.push("Target not found");
+                            continue;
+                        }
+                        const isDelta = !!args.isDelta;
+                        const position = args.position
+                            ? {
+                                  x: isDelta
+                                      ? obj.position.x + (args.position.x ?? 0)
+                                      : args.position.x ?? obj.position.x,
+                                  y: isDelta
+                                      ? obj.position.y + (args.position.y ?? 0)
+                                      : args.position.y ?? obj.position.y,
+                                  z: isDelta
+                                      ? obj.position.z + (args.position.z ?? 0)
+                                      : args.position.z ?? obj.position.z,
+                              }
+                            : undefined;
+                        const rotation = args.rotation
+                            ? {
+                                  x: isDelta
+                                      ? obj.rotation.x + (args.rotation.x ?? 0)
+                                      : args.rotation.x ?? obj.rotation.x,
+                                  y: isDelta
+                                      ? obj.rotation.y + (args.rotation.y ?? 0)
+                                      : args.rotation.y ?? obj.rotation.y,
+                                  z: isDelta
+                                      ? obj.rotation.z + (args.rotation.z ?? 0)
+                                      : args.rotation.z ?? obj.rotation.z,
+                              }
+                            : undefined;
+                        const scale = args.scale
+                            ? {
+                                  x: isDelta
+                                      ? obj.scale.x * (args.scale.x ?? 1)
+                                      : args.scale.x ?? obj.scale.x,
+                                  y: isDelta
+                                      ? obj.scale.y * (args.scale.y ?? 1)
+                                      : args.scale.y ?? obj.scale.y,
+                                  z: isDelta
+                                      ? obj.scale.z * (args.scale.z ?? 1)
+                                      : args.scale.z ?? obj.scale.z,
+                              }
+                            : undefined;
+                        updateTransform(id, { position, rotation, scale });
+                        executedAny = true;
+                        replies.push("Transform updated");
+                        continue;
+                    }
+                    if (name === "updateMaterial") {
+                        const id = args.id || selectedId;
+                        if (!id) {
+                            replies.push("No target for material");
+                            continue;
+                        }
+                        updateMaterial(id, {
+                            color: args.color,
+                            metalness: args.metalness,
+                            roughness: args.roughness,
+                            opacity: args.opacity,
+                            transparent: args.transparent,
+                        });
+                        executedAny = true;
+                        replies.push("Material updated");
+                        continue;
+                    }
+                    if (name === "updateGeometry") {
+                        const id = args.id || selectedId;
+                        if (!id) {
+                            replies.push("No target for geometry");
+                            continue;
+                        }
+                        updateGeometry(id, args.kind as GeometryKind, args.params);
+                        executedAny = true;
+                        replies.push(`Geometry set to ${args.kind}`);
+                        continue;
+                    }
+                    if (name === "duplicateSelected") {
+                        duplicateSelected();
+                        executedAny = true;
+                        replies.push("Duplicated");
+                        continue;
+                    }
+                    if (name === "deleteSelected") {
+                        deleteSelected();
+                        executedAny = true;
+                        replies.push("Deleted");
+                        continue;
+                    }
+                    if (name === "booleanOp") {
+                        booleanOp(args.op, args.a, args.b);
+                        executedAny = true;
+                        replies.push(`Boolean ${args.op}`);
+                        continue;
+                    }
+                    if (name === "undo") {
+                        undo();
+                        executedAny = true;
+                        replies.push("Undid last action");
+                        continue;
+                    }
+                    if (name === "redo") {
+                        redo();
+                        executedAny = true;
+                        replies.push("Redid last action");
+                        continue;
+                    }
+                    if (name === "toggleSnap") {
+                        toggleSnap(!!args.enabled);
+                        executedAny = true;
+                        replies.push(`Snapping ${args.enabled ? "enabled" : "disabled"}`);
+                        continue;
+                    }
+                    if (name === "setSnap") {
+                        setSnap({
+                            translateSnap: args.translateSnap,
+                            rotateSnap: args.rotateSnap,
+                            scaleSnap: args.scaleSnap,
+                        });
+                        executedAny = true;
+                        replies.push("Snap updated");
+                        continue;
+                    }
+                    if (name === "setMode") {
+                        setMode(args.mode);
+                        executedAny = true;
+                        replies.push(`Mode: ${args.mode}`);
+                        continue;
+                    }
+                    if (name === "updateName") {
+                        const id = args.id || selectedId;
+                        const nextName = String(args.name || "").trim();
+                        if (!id || !nextName) {
+                            replies.push("Missing id or name for rename");
+                            continue;
+                        }
+                        updateName(id, nextName);
+                        executedAny = true;
+                        replies.push(`Renamed to ${nextName}`);
+                        continue;
+                    }
+                    if (name === "cloneGrid") {
+                        const baseId: string | null = args.id || selectedId || null;
+                        const countX = Math.max(1, Number(args.countX ?? 1));
+                        const countY = Math.max(1, Number(args.countY ?? 1));
+                        const countZ = Math.max(1, Number(args.countZ ?? 1));
+                        const spacingX = Number(args.spacingX ?? 1);
+                        const spacingY = Number(args.spacingY ?? 1);
+                        const spacingZ = Number(args.spacingZ ?? 1);
+                        if (!baseId) {
+                            replies.push("No target selected for cloneGrid");
+                            continue;
+                        }
+                        const base = objects.find(o => o.id === baseId);
+                        if (!base) {
+                            replies.push("Target not found for cloneGrid");
+                            continue;
+                        }
+                        const basePos = { ...base.position };
+                        let clones = 0;
+                        for (let ix = 0; ix < countX; ix++) {
+                            for (let iy = 0; iy < countY; iy++) {
+                                for (let iz = 0; iz < countZ; iz++) {
+                                    if (ix === 0 && iy === 0 && iz === 0) continue;
+                                    select(base.id);
+                                    duplicateSelected();
+                                    const state = (useEditor as any).getState?.() || {};
+                                    const newId = state.selectedId as string | undefined;
+                                    if (!newId) continue;
+                                    const nx = basePos.x + ix * spacingX;
+                                    const ny = basePos.y + iy * spacingY;
+                                    const nz = basePos.z + iz * spacingZ;
+                                    updateTransform(newId, { position: { x: nx, y: ny, z: nz } });
+                                    clones++;
+                                }
+                            }
+                        }
+                        executedAny = true;
+                        replies.push(`Cloned grid ${countX}x${countY}x${countZ} (${clones} new)`);
+                        continue;
+                    }
+                    if (name === "importGLTFFromAttachment") {
+                        if (!attached) {
+                            replies.push("No file attached for import");
+                            continue;
+                        }
+                        const ext = attached.name.toLowerCase().split('.').pop() || '';
+                        if (ext !== 'glb' && ext !== 'gltf') {
+                            replies.push("Unsupported file type for GLTF import");
+                            continue;
+                        }
+                        try {
+                            const objs = await importObjectsFromGLTF(attached);
+                            addSceneObjects(objs);
+                            executedAny = true;
+                            replies.push(`Imported ${objs.length} object(s)`);
+                        } catch (e) {
+                            replies.push("Import failed");
+                        }
+                        continue;
+                    }
+                    if (name === "importGLTFByUrl") {
+                        const url: string = String(args.url || "");
+                        if (!url) {
+                            replies.push("Missing url for import");
+                            continue;
+                        }
+                        try {
+                            const resp = await fetch(url);
+                            if (!resp.ok) throw new Error("fetch failed");
+                            const blob = await resp.blob();
+                            const filename = url.split('/').pop() || 'model.glb';
+                            const file = new File([blob], filename, { type: blob.type || 'application/octet-stream' });
+                            const objs = await importObjectsFromGLTF(file);
+                            addSceneObjects(objs);
+                            executedAny = true;
+                            replies.push(`Imported ${objs.length} object(s) from URL`);
+                        } catch (e) {
+                            replies.push("Import by URL failed");
+                        }
+                        continue;
+                    }
                 }
-                if (name === "updateTransform") {
-                    const id = args.id || selectedId;
-                    if (!id)
-                        return {
-                            executed: false,
-                            reply: "No target for transform",
-                        };
-                    const obj = objects.find((o) => o.id === id);
-                    if (!obj)
-                        return { executed: false, reply: "Target not found" };
-                    const isDelta = !!args.isDelta;
-                    const position = args.position
-                        ? {
-                              x: isDelta
-                                  ? obj.position.x + (args.position.x ?? 0)
-                                  : args.position.x ?? obj.position.x,
-                              y: isDelta
-                                  ? obj.position.y + (args.position.y ?? 0)
-                                  : args.position.y ?? obj.position.y,
-                              z: isDelta
-                                  ? obj.position.z + (args.position.z ?? 0)
-                                  : args.position.z ?? obj.position.z,
-                          }
-                        : undefined;
-                    const rotation = args.rotation
-                        ? {
-                              x: isDelta
-                                  ? obj.rotation.x + (args.rotation.x ?? 0)
-                                  : args.rotation.x ?? obj.rotation.x,
-                              y: isDelta
-                                  ? obj.rotation.y + (args.rotation.y ?? 0)
-                                  : args.rotation.y ?? obj.rotation.y,
-                              z: isDelta
-                                  ? obj.rotation.z + (args.rotation.z ?? 0)
-                                  : args.rotation.z ?? obj.rotation.z,
-                          }
-                        : undefined;
-                    const scale = args.scale
-                        ? {
-                              x: isDelta
-                                  ? obj.scale.x * (args.scale.x ?? 1)
-                                  : args.scale.x ?? obj.scale.x,
-                              y: isDelta
-                                  ? obj.scale.y * (args.scale.y ?? 1)
-                                  : args.scale.y ?? obj.scale.y,
-                              z: isDelta
-                                  ? obj.scale.z * (args.scale.z ?? 1)
-                                  : args.scale.z ?? obj.scale.z,
-                          }
-                        : undefined;
-                    updateTransform(id, { position, rotation, scale });
-                    return { executed: true, reply: "Transform updated" };
-                }
-                if (name === "updateMaterial") {
-                    const id = args.id || selectedId;
-                    if (!id)
-                        return {
-                            executed: false,
-                            reply: "No target for material",
-                        };
-                    updateMaterial(id, {
-                        color: args.color,
-                        metalness: args.metalness,
-                        roughness: args.roughness,
-                        opacity: args.opacity,
-                        transparent: args.transparent,
-                    });
-                    return { executed: true, reply: "Material updated" };
-                }
-                if (name === "updateGeometry") {
-                    const id = args.id || selectedId;
-                    if (!id)
-                        return {
-                            executed: false,
-                            reply: "No target for geometry",
-                        };
-                    updateGeometry(id, args.kind as GeometryKind, args.params);
-                    return {
-                        executed: true,
-                        reply: `Geometry set to ${args.kind}`,
-                    };
-                }
-                if (name === "duplicateSelected") {
-                    duplicateSelected();
-                    return { executed: true, reply: "Duplicated" };
-                }
-                if (name === "deleteSelected") {
-                    deleteSelected();
-                    return { executed: true, reply: "Deleted" };
-                }
-                if (name === "booleanOp") {
-                    booleanOp(args.op, args.a, args.b);
-                    return { executed: true, reply: `Boolean ${args.op}` };
-                }
-                if (name === "undo") {
-                    undo();
-                    return { executed: true, reply: "Undid last action" };
-                }
-                if (name === "redo") {
-                    redo();
-                    return { executed: true, reply: "Redid last action" };
-                }
-                if (name === "toggleSnap") {
-                    toggleSnap(!!args.enabled);
-                    return {
-                        executed: true,
-                        reply: `Snapping ${
-                            args.enabled ? "enabled" : "disabled"
-                        }`,
-                    };
-                }
-                if (name === "setSnap") {
-                    setSnap({
-                        translateSnap: args.translateSnap,
-                        rotateSnap: args.rotateSnap,
-                        scaleSnap: args.scaleSnap,
-                    });
-                    return { executed: true, reply: "Snap updated" };
-                }
-                if (name === "setMode") {
-                    setMode(args.mode);
-                    return { executed: true, reply: `Mode: ${args.mode}` };
-                }
+
+                return { executed: executedAny, reply: replies.join("; ") || "Ok" };
             }
 
             const text = msg?.content ?? "Ok";

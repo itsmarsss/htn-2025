@@ -157,6 +157,7 @@ interface EditorStore extends EditorState {
         kind: K,
         params?: GeometryParamsMap[K]
     ) => void;
+    addSceneObjects: (objs: SceneObject[]) => void;
     deleteSelected: () => void;
     duplicateSelected: () => void;
     select: (id: string | null) => void;
@@ -209,6 +210,22 @@ export const useEditor = create<EditorStore>()((set) => ({
                 draft.future = [];
                 draft.objects.push(newObj);
                 draft.selectedId = newObj.id;
+            });
+            return next;
+        }),
+    addSceneObjects: (objs) =>
+        set((state) => {
+            if (!objs || objs.length === 0) return state;
+            const next = produce(state, (draft) => {
+                draft.past.push(snapshot(state));
+                draft.future = [];
+                for (const o of objs) {
+                    // ensure id uniqueness
+                    const exists = draft.objects.some((x) => x.id === o.id);
+                    const toAdd = exists ? { ...o, id: nanoid(8) } : o;
+                    draft.objects.push(JSON.parse(JSON.stringify(toAdd)));
+                    draft.selectedId = toAdd.id;
+                }
             });
             return next;
         }),
