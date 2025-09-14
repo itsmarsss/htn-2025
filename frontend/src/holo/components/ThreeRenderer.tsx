@@ -517,8 +517,8 @@ function Editable3DObject({
                     | undefined;
                 return new THREE.SphereGeometry(
                     p?.radius ?? 0.5,
-                    p?.widthSegments ?? 32,
-                    p?.heightSegments ?? 16
+                    p?.widthSegments ?? 64,
+                    p?.heightSegments ?? 32
                 );
             }
             case "cylinder": {
@@ -549,8 +549,8 @@ function Editable3DObject({
                 return new THREE.TorusGeometry(
                     p?.radius ?? 0.5,
                     p?.tube ?? 0.2,
-                    p?.radialSegments ?? 16,
-                    p?.tubularSegments ?? 64
+                    p?.radialSegments ?? 8,
+                    p?.tubularSegments ?? 16
                 );
             }
             case "plane": {
