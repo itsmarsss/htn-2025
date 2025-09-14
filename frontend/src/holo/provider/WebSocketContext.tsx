@@ -108,10 +108,28 @@ export const WebSocketProvider = ({ url, children }: WebSocketProps) => {
         return true;
     };
 
+    const getConnectionStatus = (): SocketStatus => {
+        const socket = wsRef.current;
+        if (!socket) return "Disconnected";
+        switch (socket.readyState) {
+            case WebSocket.CONNECTING:
+                return "Connecting...";
+            case WebSocket.OPEN:
+                return "Connected";
+            case WebSocket.CLOSING:
+                return "Disconnected";
+            case WebSocket.CLOSED:
+                return "Disconnected";
+            default:
+                return "Disconnected";
+        }
+    };
+
     const value = useMemo<WebSocketContextType>(
         () => ({
             sendFrame,
             getWebSocket: () => wsRef.current,
+            getConnectionStatus,
             getAcknowledged: () => acknowledgedRef.current,
             getData: () => dataRef.current,
             getDataVersion: () => dataVersionRef.current,

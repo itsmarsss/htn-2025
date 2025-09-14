@@ -515,11 +515,14 @@ function Editable3DObject({
                 const p = o.geometryParams as
                     | import("../../types").GeometryParamsMap["sphere"]
                     | undefined;
-                return new THREE.SphereGeometry(
+                const geometry = new THREE.SphereGeometry(
                     p?.radius ?? 0.5,
-                    p?.widthSegments ?? 32,
-                    p?.heightSegments ?? 16
+                    p?.widthSegments ?? 8,
+                    p?.heightSegments ?? 8
                 );
+                // Ensure smooth shading
+                geometry.computeVertexNormals();
+                return geometry;
             }
             case "cylinder": {
                 const p = o.geometryParams as
@@ -546,12 +549,15 @@ function Editable3DObject({
                 const p = o.geometryParams as
                     | import("../../types").GeometryParamsMap["torus"]
                     | undefined;
-                return new THREE.TorusGeometry(
+                const geometry = new THREE.TorusGeometry(
                     p?.radius ?? 0.5,
                     p?.tube ?? 0.2,
-                    p?.radialSegments ?? 16,
-                    p?.tubularSegments ?? 64
+                    p?.radialSegments ?? 8,
+                    p?.tubularSegments ?? 16
                 );
+                // Ensure smooth shading
+                geometry.computeVertexNormals();
+                return geometry;
             }
             case "plane": {
                 const p = o.geometryParams as
@@ -588,20 +594,6 @@ function Editable3DObject({
                             o.position.y,
                             o.position.z
                         ),
-                        0x00ff00
-                    );
-                } else if (createSphere && o.geometry === "sphere") {
-                    const p = o.geometryParams as
-                        | import("../../types").GeometryParamsMap["sphere"]
-                        | undefined;
-                    group = createSphere(
-                        o.id,
-                        new THREE.Vector3(
-                            o.position.x,
-                            o.position.y,
-                            o.position.z
-                        ),
-                        p?.radius ?? 0.5,
                         0x00ff00
                     );
                 } else {
