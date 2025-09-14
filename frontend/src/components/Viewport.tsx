@@ -475,6 +475,45 @@ export function Viewport() {
                 cellThickness={0.3}
                 sectionThickness={1}
             />
+            {/* Custom axis lines that extend in both directions - full grid span */}
+            <group>
+                {/* X-axis (Bright Red) */}
+                <line>
+                    <bufferGeometry>
+                        <bufferAttribute
+                            attach="attributes-position"
+                            count={2}
+                            array={new Float32Array([-500, 0, 0, 500, 0, 0])}
+                            itemSize={3}
+                        />
+                    </bufferGeometry>
+                    <lineBasicMaterial color="#ff2222" linewidth={4} />
+                </line>
+                {/* Y-axis (Bright Green) */}
+                <line>
+                    <bufferGeometry>
+                        <bufferAttribute
+                            attach="attributes-position"
+                            count={2}
+                            array={new Float32Array([0, -500, 0, 0, 500, 0])}
+                            itemSize={3}
+                        />
+                    </bufferGeometry>
+                    <lineBasicMaterial color="#22ff22" linewidth={4} />
+                </line>
+                {/* Z-axis (Bright Blue) */}
+                <line>
+                    <bufferGeometry>
+                        <bufferAttribute
+                            attach="attributes-position"
+                            count={2}
+                            array={new Float32Array([0, 0, -500, 0, 0, 500])}
+                            itemSize={3}
+                        />
+                    </bufferGeometry>
+                    <lineBasicMaterial color="#2222ff" linewidth={4} />
+                </line>
+            </group>
             {/* AccumulativeShadows temporarily disabled to avoid drei uniform .value crash */}
             <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
                 <GizmoViewport
