@@ -2,14 +2,18 @@ import styled from "styled-components";
 import { useVideoStream } from "../holo/provider/VideoStreamContext";
 
 const VideoContainer = styled.div`
-    background: rgba(30, 34, 44, 0.7);
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    width: 200px;
+    background: rgba(18, 20, 26, 0.85);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 8px;
     padding: 6px;
-    margin: 6px 0;
     display: flex;
     flex-direction: column;
     gap: 4px;
+    z-index: 10;
 `;
 
 const Video = styled.video`
@@ -33,12 +37,12 @@ const Status = styled.div`
 `;
 
 export function VideoStream() {
-    const { videoRef, getStatus } = useVideoStream();
+    const { videoRef, status } = useVideoStream();
 
     return (
         <VideoContainer>
             <Video ref={videoRef as any} autoPlay muted />
-            <Status>{getStatus()}</Status>
+            <Status>{status}</Status>
         </VideoContainer>
     );
 }

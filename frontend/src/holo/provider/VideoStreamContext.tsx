@@ -5,6 +5,7 @@ import React, {
     useEffect,
     useMemo,
     useRef,
+    useState,
 } from "react";
 import type { StreamStatus } from "../types/streamstatus";
 
@@ -13,7 +14,7 @@ interface VideoStreamContextType {
     getAvailableCameras: () => Promise<MediaDeviceInfo[]>;
     captureFrame: () => Promise<ArrayBuffer | null>;
     setActiveCamera: (cameraId: string) => void;
-    getStatus: () => StreamStatus;
+    status: StreamStatus;
     getStream: () => MediaStream | null;
 }
 
@@ -23,7 +24,7 @@ export const VideoStreamProvider: React.FC<{ children: React.ReactNode }> = ({
     children,
 }) => {
     const activeCameraRef = useRef<string | null>(null);
-    const streamStatusRef = useRef<StreamStatus>("idle");
+    const [status, setStatus] = useState<StreamStatus>("idle");
     const streamRef = useRef<MediaStream | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -50,7 +51,7 @@ export const VideoStreamProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const startStream = async (deviceId: string) => {
         stopStream();
-        streamStatusRef.current = "loading";
+        setStatus("loading");
         try {
             const newStream = await navigator.mediaDevices.getUserMedia({
                 video: {
@@ -61,9 +62,9 @@ export const VideoStreamProvider: React.FC<{ children: React.ReactNode }> = ({
             });
             streamRef.current = newStream;
             if (videoRef.current) videoRef.current.srcObject = newStream;
-            streamStatusRef.current = "streaming";
+            setStatus("streaming");
         } catch {
-            streamStatusRef.current = "error";
+            setStatus("error");
         }
     };
 
@@ -71,7 +72,7 @@ export const VideoStreamProvider: React.FC<{ children: React.ReactNode }> = ({
         if (streamRef.current) {
             streamRef.current.getTracks().forEach((t) => t.stop());
             streamRef.current = null;
-            streamStatusRef.current = "stopped";
+            setStatus("stopped");
         }
     };
 
@@ -110,10 +111,10 @@ export const VideoStreamProvider: React.FC<{ children: React.ReactNode }> = ({
                 activeCameraRef.current = id;
                 startStream(id);
             },
-            getStatus: () => streamStatusRef.current,
+            status,
             getStream: () => streamRef.current,
         }),
-        []
+        [status]
     );
 
     return (
