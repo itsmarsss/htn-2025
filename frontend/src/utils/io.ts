@@ -1,7 +1,9 @@
-import { GLTFExporter } from 'three-stdlib'
+import { GLTFExporter, GLTFLoader } from 'three-stdlib'
 import { saveAs } from 'file-saver'
 import * as THREE from 'three'
 import type { SceneObject, GeometryParamsMap } from '../types'
+import { serializeGeometry } from './geometry'
+import { nanoid } from 'nanoid'
 
 export function buildSceneFromObjects(objects: SceneObject[]): THREE.Scene {
   const scene = new THREE.Scene()
@@ -84,4 +86,103 @@ export async function exportSceneToGLB(scene: THREE.Scene, filename = 'scene.glb
       { binary: true }
     )
   })
+}
+
+export async function exportSceneToGLTF(scene: THREE.Scene, filename = 'scene.gltf') {
+  const exporter = new GLTFExporter()
+  return new Promise<void>((resolve, reject) => {
+    exporter.parse(
+      scene,
+      (gltf) => {
+        try {
+          if (gltf instanceof ArrayBuffer) {
+            // If binary returned, convert to JSON first
+            reject(new Error('Expected JSON glTF export, got binary'))
+            return
+          }
+          const json = JSON.stringify(gltf)
+          const blob = new Blob([json], { type: 'application/json' })
+          saveAs(blob, filename)
+          resolve()
+        } catch (e) {
+          reject(e)
+        }
+      },
+      (error) => reject(error),
+      { binary: false }
+    )
+  })
+}
+
+function meshToSceneObject(mesh: THREE.Mesh): SceneObject | null {
+  const geometry = mesh.geometry as THREE.BufferGeometry | undefined
+  if (!geometry) return null
+  const material = mesh.material as THREE.MeshStandardMaterial | THREE.MeshPhysicalMaterial | undefined
+  const color = (material && 'color' in material && (material as any).color) ? (material as any).color as THREE.Color : new THREE.Color('#9aa7ff')
+  const metalness = (material && 'metalness' in material) ? Number((material as any).metalness ?? 0.1) : 0.1
+  const roughness = (material && 'roughness' in material) ? Number((material as any).roughness ?? 0.8) : 0.8
+  const opacity = (material && 'opacity' in material) ? Number((material as any).opacity ?? 1) : 1
+  const transparent = (material && 'transparent' in material) ? Boolean((material as any).transparent ?? false) : false
+
+  return {
+    id: nanoid(8),
+    name: mesh.name || 'Imported',
+    geometry: 'custom',
+    geometryParams: serializeGeometry(geometry),
+    position: { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
+    rotation: { x: mesh.rotation.x, y: mesh.rotation.y, z: mesh.rotation.z },
+    scale: { x: mesh.scale.x, y: mesh.scale.y, z: mesh.scale.z },
+    material: {
+      color: `#${color.getHexString()}`,
+      metalness,
+      roughness,
+      opacity,
+      transparent,
+    },
+    visible: mesh.visible,
+    locked: false,
+  }
+}
+
+function extractObjectsFromThreeScene(root: THREE.Object3D): SceneObject[] {
+  const result: SceneObject[] = []
+  root.traverse((child) => {
+    if ((child as THREE.Mesh).isMesh) {
+      const obj = meshToSceneObject(child as THREE.Mesh)
+      if (obj) result.push(obj)
+    }
+  })
+  return result
+}
+
+export async function importObjectsFromGLTF(file: File): Promise<SceneObject[]> {
+  const loader = new GLTFLoader()
+  const ext = file.name.toLowerCase().split('.').pop() || ''
+  if (ext === 'glb') {
+    const arrayBuffer = await file.arrayBuffer()
+    return new Promise((resolve, reject) => {
+      loader.parse(arrayBuffer as unknown as ArrayBuffer, '', (gltf) => {
+        try {
+          const objs = extractObjectsFromThreeScene(gltf.scene)
+          resolve(objs)
+        } catch (e) {
+          reject(e)
+        }
+      }, (err) => reject(err))
+    })
+  }
+  if (ext === 'gltf') {
+    const text = await file.text()
+    return new Promise((resolve, reject) => {
+      loader.parse(text, '', (gltf) => {
+        try {
+          const objs = extractObjectsFromThreeScene(gltf.scene)
+          resolve(objs)
+        } catch (e) {
+          reject(e)
+        }
+      }, (err) => reject(err))
+    })
+  }
+  throw new Error('Unsupported file type for GLTF import')
 }
