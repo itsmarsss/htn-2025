@@ -105,8 +105,8 @@ export const ThreeDProvider: React.FC<{ children: React.ReactNode }> = ({
 
         // Create an infinite grid by using a large size and positioning it at the camera's height
         const gridHelper = new THREE.GridHelper(1000, 1000);
-        // Set grid color to match the dark theme
-        (gridHelper.material as THREE.LineBasicMaterial).color.setHex(0x3a3d44);
+        // Set grid color to white for better visibility
+        (gridHelper.material as THREE.LineBasicMaterial).color.setHex(0xffffff);
         mainGroupRef.current.add(gridHelper);
 
         sceneRef.current.add(mainGroupRef.current);
