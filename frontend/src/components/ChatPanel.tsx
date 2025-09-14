@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useEditor } from "../store/editor";
 import type { GeometryKind, SceneObject } from "../types";
 import { importObjectsFromGLTF } from "../utils/io";
@@ -218,6 +218,10 @@ export function ChatPanel() {
     const [isLoading, setIsLoading] = useState(false);
     const [attachment, setAttachment] = useState<File | null>(null);
     const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+    const [currentModel, setCurrentModel] = useState<string>("");
+    const [availableModels, setAvailableModels] = useState<
+        Array<{ id: string; name: string; description: string }>
+    >([]);
 
     const objects = useEditor((s) => s.objects);
     const selectedId = useEditor((s) => s.selectedId);
@@ -247,6 +251,28 @@ export function ChatPanel() {
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Fetch available models on component mount
+    React.useEffect(() => {
+        const fetchModels = async () => {
+            try {
+                const response = await fetch(`${SERVER_URL}/api/models`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setCurrentModel(data.current);
+                    setAvailableModels(data.available);
+                } else {
+                    console.error(
+                        "Failed to fetch models, status:",
+                        response.status
+                    );
+                }
+            } catch (error) {
+                console.error("Failed to fetch models:", error);
+            }
+        };
+        fetchModels();
+    }, []);
+
     function push(role: ChatMsg["role"], text: string) {
         setMessages((prev) => [...prev, { role, text }]);
         queueMicrotask(() => {
@@ -270,6 +296,31 @@ export function ChatPanel() {
         setPinnedIds([]);
     }
 
+    async function switchModel(modelId: string) {
+        try {
+            const response = await fetch(`${SERVER_URL}/api/models/switch`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ model: modelId }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setCurrentModel(modelId);
+                push("system", data.message);
+            } else {
+                console.error(
+                    "Failed to switch model, status:",
+                    response.status
+                );
+                push("system", "Failed to switch model");
+            }
+        } catch (error) {
+            console.error("Error switching model:", error);
+            push("system", "Error switching model");
+        }
+    }
+
     function ensurePinned(add: string | string[]) {
         setPinnedIds((prev) => {
             const next = new Set(prev);
@@ -286,40 +337,75 @@ export function ChatPanel() {
         if (objects.length === 0) {
             return {
                 min: { x: 0, y: 0, z: 0 },
-                max: { x: 0, y: 0, z: 0 }
+                max: { x: 0, y: 0, z: 0 },
             };
         }
 
-        let minX = Infinity, minY = Infinity, minZ = Infinity;
-        let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+        let minX = Infinity,
+            minY = Infinity,
+            minZ = Infinity;
+        let maxX = -Infinity,
+            maxY = -Infinity,
+            maxZ = -Infinity;
 
-        objects.forEach(obj => {
+        objects.forEach((obj) => {
             const p: any = obj.geometryParams || {};
             const kind = obj.geometry;
-            
+
             // Calculate effective dimensions
             const eff = {
-                width: kind === "box" ? (p.width ?? 1) * obj.scale.x
-                    : kind === "sphere" ? 2 * (p.radius ?? 0.5) * obj.scale.x
-                    : kind === "cylinder" ? 2 * Math.max(p.radiusTop ?? p.radius ?? 0.5, p.radiusBottom ?? p.radius ?? 0.5) * obj.scale.x
-                    : kind === "cone" ? 2 * (p.radius ?? 0.5) * obj.scale.x
-                    : kind === "torus" ? 2 * (p.radius ?? 0.5) * obj.scale.x
-                    : kind === "plane" ? (p.width ?? 1) * obj.scale.x
-                    : 1,
-                height: kind === "box" ? (p.height ?? 1) * obj.scale.y
-                    : kind === "sphere" ? 2 * (p.radius ?? 0.5) * obj.scale.y
-                    : kind === "cylinder" ? (p.height ?? 1) * obj.scale.y
-                    : kind === "cone" ? (p.height ?? 1) * obj.scale.y
-                    : kind === "torus" ? 2 * (p.radius ?? 0.5) * obj.scale.y
-                    : kind === "plane" ? (p.height ?? 1) * obj.scale.y
-                    : 1,
-                depth: kind === "box" ? (p.depth ?? 1) * obj.scale.z
-                    : kind === "sphere" ? 2 * (p.radius ?? 0.5) * obj.scale.z
-                    : kind === "cylinder" ? 2 * Math.max(p.radiusTop ?? p.radius ?? 0.5, p.radiusBottom ?? p.radius ?? 0.5) * obj.scale.z
-                    : kind === "cone" ? 2 * (p.radius ?? 0.5) * obj.scale.z
-                    : kind === "torus" ? 2 * (p.radius ?? 0.5) * obj.scale.z
-                    : kind === "plane" ? 0
-                    : 1,
+                width:
+                    kind === "box"
+                        ? (p.width ?? 1) * obj.scale.x
+                        : kind === "sphere"
+                        ? 2 * (p.radius ?? 0.5) * obj.scale.x
+                        : kind === "cylinder"
+                        ? 2 *
+                          Math.max(
+                              p.radiusTop ?? p.radius ?? 0.5,
+                              p.radiusBottom ?? p.radius ?? 0.5
+                          ) *
+                          obj.scale.x
+                        : kind === "cone"
+                        ? 2 * (p.radius ?? 0.5) * obj.scale.x
+                        : kind === "torus"
+                        ? 2 * (p.radius ?? 0.5) * obj.scale.x
+                        : kind === "plane"
+                        ? (p.width ?? 1) * obj.scale.x
+                        : 1,
+                height:
+                    kind === "box"
+                        ? (p.height ?? 1) * obj.scale.y
+                        : kind === "sphere"
+                        ? 2 * (p.radius ?? 0.5) * obj.scale.y
+                        : kind === "cylinder"
+                        ? (p.height ?? 1) * obj.scale.y
+                        : kind === "cone"
+                        ? (p.height ?? 1) * obj.scale.y
+                        : kind === "torus"
+                        ? 2 * (p.radius ?? 0.5) * obj.scale.y
+                        : kind === "plane"
+                        ? (p.height ?? 1) * obj.scale.y
+                        : 1,
+                depth:
+                    kind === "box"
+                        ? (p.depth ?? 1) * obj.scale.z
+                        : kind === "sphere"
+                        ? 2 * (p.radius ?? 0.5) * obj.scale.z
+                        : kind === "cylinder"
+                        ? 2 *
+                          Math.max(
+                              p.radiusTop ?? p.radius ?? 0.5,
+                              p.radiusBottom ?? p.radius ?? 0.5
+                          ) *
+                          obj.scale.z
+                        : kind === "cone"
+                        ? 2 * (p.radius ?? 0.5) * obj.scale.z
+                        : kind === "torus"
+                        ? 2 * (p.radius ?? 0.5) * obj.scale.z
+                        : kind === "plane"
+                        ? 0
+                        : 1,
             };
 
             // Calculate bounding box corners
@@ -328,17 +414,49 @@ export function ChatPanel() {
             const halfDepth = eff.depth / 2;
 
             const corners = [
-                { x: obj.position.x - halfWidth, y: obj.position.y - halfHeight, z: obj.position.z - halfDepth },
-                { x: obj.position.x + halfWidth, y: obj.position.y - halfHeight, z: obj.position.z - halfDepth },
-                { x: obj.position.x - halfWidth, y: obj.position.y + halfHeight, z: obj.position.z - halfDepth },
-                { x: obj.position.x + halfWidth, y: obj.position.y + halfHeight, z: obj.position.z - halfDepth },
-                { x: obj.position.x - halfWidth, y: obj.position.y - halfHeight, z: obj.position.z + halfDepth },
-                { x: obj.position.x + halfWidth, y: obj.position.y - halfHeight, z: obj.position.z + halfDepth },
-                { x: obj.position.x - halfWidth, y: obj.position.y + halfHeight, z: obj.position.z + halfDepth },
-                { x: obj.position.x + halfWidth, y: obj.position.y + halfHeight, z: obj.position.z + halfDepth },
+                {
+                    x: obj.position.x - halfWidth,
+                    y: obj.position.y - halfHeight,
+                    z: obj.position.z - halfDepth,
+                },
+                {
+                    x: obj.position.x + halfWidth,
+                    y: obj.position.y - halfHeight,
+                    z: obj.position.z - halfDepth,
+                },
+                {
+                    x: obj.position.x - halfWidth,
+                    y: obj.position.y + halfHeight,
+                    z: obj.position.z - halfDepth,
+                },
+                {
+                    x: obj.position.x + halfWidth,
+                    y: obj.position.y + halfHeight,
+                    z: obj.position.z - halfDepth,
+                },
+                {
+                    x: obj.position.x - halfWidth,
+                    y: obj.position.y - halfHeight,
+                    z: obj.position.z + halfDepth,
+                },
+                {
+                    x: obj.position.x + halfWidth,
+                    y: obj.position.y - halfHeight,
+                    z: obj.position.z + halfDepth,
+                },
+                {
+                    x: obj.position.x - halfWidth,
+                    y: obj.position.y + halfHeight,
+                    z: obj.position.z + halfDepth,
+                },
+                {
+                    x: obj.position.x + halfWidth,
+                    y: obj.position.y + halfHeight,
+                    z: obj.position.z + halfDepth,
+                },
             ];
 
-            corners.forEach(corner => {
+            corners.forEach((corner) => {
                 minX = Math.min(minX, corner.x);
                 minY = Math.min(minY, corner.y);
                 minZ = Math.min(minZ, corner.z);
@@ -350,7 +468,7 @@ export function ChatPanel() {
 
         return {
             min: { x: minX, y: minY, z: minZ },
-            max: { x: maxX, y: maxY, z: maxZ }
+            max: { x: maxX, y: maxY, z: maxZ },
         };
     }
 
@@ -432,18 +550,43 @@ export function ChatPanel() {
     async function callLLM(userText: string, attached?: File | null) {
         try {
             setIsLoading(true);
-            
+
             // Enhanced scene summary with spatial context
             const sceneBounds = calculateSceneBounds(objects);
-            const sceneSummary = objects.length > 0 
-                ? `Scene contains ${objects.length} objects. Scene bounds: x[${sceneBounds.min.x.toFixed(1)}, ${sceneBounds.max.x.toFixed(1)}], y[${sceneBounds.min.y.toFixed(1)}, ${sceneBounds.max.y.toFixed(1)}], z[${sceneBounds.min.z.toFixed(1)}, ${sceneBounds.max.z.toFixed(1)}]. Objects: ` +
-                  objects
-                      .map(
-                          (o) =>
-                              `${o.name} [${o.id}] kind=${o.geometry} pos=(${o.position.x.toFixed(2)},${o.position.y.toFixed(2)},${o.position.z.toFixed(2)}) size=(${o.scale.x.toFixed(2)},${o.scale.y.toFixed(2)},${o.scale.z.toFixed(2)})`
-                      )
-                      .join("; ")
-                : "Empty scene - no objects present.";
+            const sceneSummary =
+                objects.length > 0
+                    ? `Scene contains ${
+                          objects.length
+                      } objects. Scene bounds: x[${sceneBounds.min.x.toFixed(
+                          1
+                      )}, ${sceneBounds.max.x.toFixed(
+                          1
+                      )}], y[${sceneBounds.min.y.toFixed(
+                          1
+                      )}, ${sceneBounds.max.y.toFixed(
+                          1
+                      )}], z[${sceneBounds.min.z.toFixed(
+                          1
+                      )}, ${sceneBounds.max.z.toFixed(1)}]. Objects: ` +
+                      objects
+                          .map(
+                              (o) =>
+                                  `${o.name} [${o.id}] kind=${
+                                      o.geometry
+                                  } pos=(${o.position.x.toFixed(
+                                      2
+                                  )},${o.position.y.toFixed(
+                                      2
+                                  )},${o.position.z.toFixed(
+                                      2
+                                  )}) size=(${o.scale.x.toFixed(
+                                      2
+                                  )},${o.scale.y.toFixed(
+                                      2
+                                  )},${o.scale.z.toFixed(2)})`
+                          )
+                          .join("; ")
+                    : "Empty scene - no objects present.";
 
             const pinned = pinnedIds
                 .map((id) => objects.find((o) => o.id === id))
@@ -816,32 +959,35 @@ export function ChatPanel() {
                     const centerX = Number(args.centerX || 0);
                     const centerY = Number(args.centerY || 0);
                     const centerZ = Number(args.centerZ || 0);
-                    
+
                     let created = 0;
                     const createdIds: string[] = [];
-                    
+
                     for (let i = 0; i < count; i++) {
                         addObject(kind, params);
                         const state = (useEditor as any).getState?.() || {};
                         const id = state.selectedId as string | undefined;
                         if (id) {
                             // Generate random position within the specified area
-                            const x = centerX + (Math.random() - 0.5) * areaWidth;
-                            const y = centerY + (Math.random() - 0.5) * areaHeight;
-                            const z = centerZ + (Math.random() - 0.5) * areaDepth;
-                            
+                            const x =
+                                centerX + (Math.random() - 0.5) * areaWidth;
+                            const y =
+                                centerY + (Math.random() - 0.5) * areaHeight;
+                            const z =
+                                centerZ + (Math.random() - 0.5) * areaDepth;
+
                             updateTransform(id, {
-                                position: { x, y, z }
+                                position: { x, y, z },
                             });
                             ensurePinned(id);
                             createdIds.push(id);
                             created++;
                         }
                     }
-                    
+
                     // Store the created IDs for potential bulk operations
                     (window as any).lastCreatedObjectIds = createdIds;
-                    
+
                     return {
                         executed: true,
                         reply: `Scattered ${created} ${kind}(s) in ${areaWidth}×${areaHeight}×${areaDepth} area centered at (${centerX}, ${centerY}, ${centerZ})`,
@@ -1363,6 +1509,55 @@ export function ChatPanel() {
             return;
         }
 
+        // scatter objects: "scatter 5 boxes in 10x10x10 area"
+        const scatterMatch = lc.match(
+            /^scatter\s+(\d+)\s+(boxes?|spheres?|cylinders?|cones?|tori?|planes?)\s+in\s+(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)\s+area(?:\s+centered\s+at\s+\(?(-?\d+(?:\.\d+)?),?\s*(-?\d+(?:\.\d+)?),?\s*(-?\d+(?:\.\d+)?)\)?)?/
+        );
+        if (scatterMatch) {
+            console.log("Scatter fallback triggered for:", text);
+            const count = parseInt(scatterMatch[1]);
+            const objectType = scatterMatch[2];
+            const areaWidth = parseFloat(scatterMatch[3]);
+            const areaHeight = parseFloat(scatterMatch[4]);
+            const areaDepth = parseFloat(scatterMatch[5]);
+            const centerX = scatterMatch[6] ? parseFloat(scatterMatch[6]) : 0;
+            const centerY = scatterMatch[7] ? parseFloat(scatterMatch[7]) : 0;
+            const centerZ = scatterMatch[8] ? parseFloat(scatterMatch[8]) : 0;
+
+            const kind = objectType.replace(/s$/, "") as GeometryKind;
+            const params = parseAddParams(kind, "");
+
+            let created = 0;
+            const createdIds: string[] = [];
+
+            for (let i = 0; i < count; i++) {
+                addObject(kind, params);
+                const state = (useEditor as any).getState?.() || {};
+                const id = state.selectedId as string | undefined;
+                if (id) {
+                    // Generate random position within the specified area
+                    const x = centerX + (Math.random() - 0.5) * areaWidth;
+                    const y = centerY + (Math.random() - 0.5) * areaHeight;
+                    const z = centerZ + (Math.random() - 0.5) * areaDepth;
+
+                    updateTransform(id, {
+                        position: { x, y, z },
+                    });
+                    ensurePinned(id);
+                    createdIds.push(id);
+                    created++;
+                }
+            }
+
+            // Store the created IDs for potential bulk operations
+            (window as any).lastCreatedObjectIds = createdIds;
+
+            sys = `Scattered ${created} ${objectType} in ${areaWidth}×${areaHeight}×${areaDepth} area centered at (${centerX}, ${centerY}, ${centerZ})`;
+            push("system", sys);
+            checkpoint(text, sys);
+            return;
+        }
+
         // boolean ops: union a b
         const boolMatch = lc.match(
             /^(union|subtract|intersect)\s+([^\s]+)\s+([^\s]+)$/
@@ -1400,7 +1595,7 @@ export function ChatPanel() {
         <Panel data-chat-panel>
             <Header>
                 <div>Chat</div>
-                <div style={{ display: "flex", gap: 6 }}>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     <Toggle onClick={() => setUsingLLM((v) => !v)}>
                         {usingLLM ? "LLM: On" : "LLM: Off"}
                     </Toggle>
@@ -1585,6 +1780,26 @@ export function ChatPanel() {
                 />
                 <SendBtn type="submit">Send</SendBtn>
             </InputRow>
+            <select
+                value={currentModel}
+                onChange={(e) => switchModel(e.target.value)}
+                style={{
+                    background: "#0f1116",
+                    border: "1px solid rgba(255, 255, 255, 0.08)",
+                    color: "#e6e9ef",
+                    borderRadius: "10px",
+                    padding: "8px 10px",
+                    fontSize: "14px",
+                    width: "100%",
+                    marginTop: "8px",
+                }}
+            >
+                {availableModels.map((model) => (
+                    <option key={model.id} value={model.id}>
+                        🧠 {model.name} - {model.description}
+                    </option>
+                ))}
+            </select>
         </Panel>
     );
 }
