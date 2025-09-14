@@ -94,7 +94,7 @@ const Message = styled.div<{ role: "user" | "system" }>`
 
 const InputRow = styled.form`
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: auto 1fr auto;
     gap: 8px;
     padding: 8px 8px 10px 8px;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -116,6 +116,14 @@ const SendBtn = styled.button`
     padding: 8px 12px;
 `;
 
+const AttachBtn = styled.button`
+    background: rgba(18, 20, 26, 0.9);
+    color: #e6e9ef;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 8px 12px;
+`;
+
 type ChatMsg = { role: "user" | "system"; text: string };
 
 function toRadians(value: number) {
@@ -126,6 +134,19 @@ function parseNumber(s: string | undefined, fallback: number) {
     if (s == null) return fallback;
     const v = parseFloat(s);
     return Number.isFinite(v) ? v : fallback;
+}
+
+async function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = String(reader.result || "");
+            const base64 = result.includes(",") ? result.split(",")[1] : result;
+            resolve(base64);
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+    });
 }
 
 const COLOR_NAMES: Record<string, string> = {
@@ -152,6 +173,7 @@ export function ChatPanel() {
     const [showHistory, setShowHistory] = useState(true);
     const [usingLLM, setUsingLLM] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
+    const [attachment, setAttachment] = useState<File | null>(null);
 
     const objects = useEditor((s) => s.objects);
     const selectedId = useEditor((s) => s.selectedId);
@@ -178,6 +200,7 @@ export function ChatPanel() {
         [objects, selectedId]
     );
     const scrollRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     function push(role: ChatMsg["role"], text: string) {
         setMessages((prev) => [...prev, { role, text }]);
@@ -187,7 +210,7 @@ export function ChatPanel() {
         });
     }
 
-    async function callLLM(userText: string) {
+    async function callLLM(userText: string, attached?: File | null) {
         try {
             setIsLoading(true);
             const sceneSummary = objects
@@ -202,10 +225,24 @@ export function ChatPanel() {
                         )})`
                 )
                 .join("; ");
+
+            let attachmentPayload: any = undefined;
+            if (attached) {
+                try {
+                    const data = await fileToBase64(attached);
+                    attachmentPayload = {
+                        name: attached.name,
+                        type: attached.type,
+                        size: attached.size,
+                        data,
+                    };
+                } catch {}
+            }
+
             const r = await fetch(`${SERVER_URL}/api/chat`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user: userText, sceneSummary }),
+                body: JSON.stringify({ user: userText, sceneSummary, attachment: attachmentPayload }),
             });
             const data = await r.json();
             // OpenAI-compatible: choices[0].message
@@ -421,7 +458,7 @@ export function ChatPanel() {
         push("user", text);
 
         if (usingLLM) {
-            callLLM(text).then(({ executed, reply }) => {
+            callLLM(text, attachment).then(({ executed, reply }) => {
                 push("system", reply);
                 if (executed) checkpoint(text, reply);
                 else fallbackParse(text);
@@ -748,6 +785,7 @@ export function ChatPanel() {
         const t = input;
         setInput("");
         handleCommand(t);
+        setAttachment(null);
     }
 
     return (
@@ -821,7 +859,43 @@ export function ChatPanel() {
                     </Message>
                 ))}
             </Messages>
+            {attachment && (
+                <div style={{
+                    padding: "6px 10px",
+                    borderTop: "1px solid rgba(255, 255, 255, 0.06)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 8,
+                }}>
+                    <div style={{
+                        fontSize: 12,
+                        opacity: 0.85,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        maxWidth: "70%",
+                    }}>
+                        Attached: {attachment.name} ({Math.max(1, Math.round(attachment.size / 1024))} KB)
+                    </div>
+                    <SmallBtn onClick={() => setAttachment(null)}>✕</SmallBtn>
+                </div>
+            )}
             <InputRow onSubmit={onSubmit}>
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    style={{ display: "none" }}
+                    onChange={(e) => setAttachment(e.target.files?.[0] ?? null)}
+                />
+                <AttachBtn
+                    type="button"
+                    aria-label="Attach file"
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Attach file"
+                >
+                    📎
+                </AttachBtn>
                 <TextInput
                     placeholder={
                         selected ? `Command for ${selected.name}…` : "Command…"
