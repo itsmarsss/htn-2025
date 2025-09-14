@@ -199,6 +199,18 @@ export function Topbar() {
                         try {
                             (useEditor as any).setState((s: any) => ({
                                 ...s,
+                                showInspector: !s.showInspector,
+                            }));
+                        } catch {}
+                    }}
+                >
+                    🔍
+                </Btn>
+                <Btn
+                    onClick={() => {
+                        try {
+                            (useEditor as any).setState((s: any) => ({
+                                ...s,
                                 showChatPanel: true,
                             }));
                         } catch {}

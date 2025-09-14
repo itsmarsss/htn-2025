@@ -263,6 +263,7 @@ const ResizeHandle = styled.div`
 
 export function Inspector() {
     const selectedId = useEditor((s) => s.selectedId);
+    const showInspector = useEditor((s) => s.showInspector);
     const objects = useEditor((s) => s.objects);
     const lights = useEditor((s) => s.lights);
     const updateTransform = useEditor((s) => s.updateTransform);
@@ -276,13 +277,14 @@ export function Inspector() {
     const snap = useEditor((s) => s.snap);
     const toggleSnap = useEditor((s) => s.toggleSnap);
     const setSnap = useEditor((s) => s.setSnap);
+    const setShowInspector = useEditor((s) => s.setShowInspector);
 
     // Function to update object name
     const updateName = useEditor((s) => s.updateName);
 
     const obj = objects.find((o) => o.id === selectedId);
     const light = lights.find((l) => l.id === selectedId);
-    const isVisible = !!(obj || light); // Show inspector when an object or light is selected
+    const isVisible = showInspector; // Show inspector based on button toggle
 
     // State for dragging and resizing
     const [position, setPosition] = useState({
@@ -398,8 +400,8 @@ export function Inspector() {
         }
     }, [isDragging, isResizing, handleMouseMove, handleMouseUp]);
 
-    // Don't render anything if no object or light is selected
-    if (!obj && !light) {
+    // Don't render anything if inspector is not visible
+    if (!isVisible) {
         return (
             <InspectorContainer
                 visible={false}
@@ -430,8 +432,7 @@ export function Inspector() {
                 <Title>Inspector</Title>
                 <CloseButton
                     onClick={() => {
-                        // Deselect the current object to hide the inspector
-                        useEditor.getState().select(null);
+                        setShowInspector(false);
                     }}
                 >
                     ✕

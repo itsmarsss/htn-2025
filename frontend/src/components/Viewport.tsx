@@ -271,11 +271,7 @@ function RenderObject({
         );
     }
 
-    return editorMode === "render" ? (
-        mesh
-    ) : (
-        <Selectable id={o.id}>{mesh}</Selectable>
-    );
+    return <Selectable id={o.id}>{mesh}</Selectable>;
 }
 
 function RenderLight({
@@ -334,6 +330,15 @@ function RenderLight({
         );
         switch (light.type) {
             case "directional":
+                // Calculate direction based on rotation
+                const direction = new THREE.Vector3(0, -1, 0);
+                const euler = new THREE.Euler(
+                    light.rotation.x,
+                    light.rotation.y,
+                    light.rotation.z
+                );
+                direction.applyEuler(euler);
+
                 return (
                     <group>
                         <mesh>
@@ -342,7 +347,7 @@ function RenderLight({
                         </mesh>
                         <arrowHelper
                             args={[
-                                new THREE.Vector3(0, -1, 0),
+                                direction,
                                 new THREE.Vector3(0, 0, 0),
                                 0.8,
                                 light.props.color,
@@ -571,11 +576,7 @@ function RenderLight({
         );
     }
 
-    return editorMode === "render" ? (
-        mesh
-    ) : (
-        <Selectable id={light.id}>{mesh}</Selectable>
-    );
+    return <Selectable id={light.id}>{mesh}</Selectable>;
 }
 
 function SceneObjects({
@@ -658,60 +659,83 @@ function Lights() {
                     light.rotation.z,
                 ];
 
-                switch (light.type) {
-                    case "directional":
-                        return (
-                            <directionalLight
-                                key={light.id}
-                                position={position}
-                                rotation={rotation}
-                                intensity={light.props.intensity}
-                                color={light.props.color}
-                                castShadow={light.castShadow}
-                                visible={light.visible}
-                            />
-                        );
-                    case "point":
-                        return (
-                            <pointLight
-                                key={light.id}
-                                position={position}
-                                intensity={light.props.intensity}
-                                color={light.props.color}
-                                distance={light.props.distance || 0}
-                                decay={light.props.decay || 2}
-                                castShadow={light.castShadow}
-                                visible={light.visible}
-                            />
-                        );
-                    case "spot":
-                        return (
-                            <spotLight
-                                key={light.id}
-                                position={position}
-                                rotation={rotation}
-                                intensity={light.props.intensity}
-                                color={light.props.color}
-                                distance={light.props.distance || 0}
-                                angle={light.props.angle || Math.PI / 3}
-                                penumbra={light.props.penumbra || 0}
-                                decay={light.props.decay || 2}
-                                castShadow={light.castShadow}
-                                visible={light.visible}
-                            />
-                        );
-                    case "ambient":
-                        return (
-                            <ambientLight
-                                key={light.id}
-                                intensity={light.props.intensity}
-                                color={light.props.color}
-                                visible={light.visible}
-                            />
-                        );
-                    default:
-                        return null;
-                }
+                const lightElement = (() => {
+                    switch (light.type) {
+                        case "directional":
+                            // Calculate target position based on rotation
+                            const targetDirection = new THREE.Vector3(0, -1, 0);
+                            const targetEuler = new THREE.Euler(
+                                light.rotation.x,
+                                light.rotation.y,
+                                light.rotation.z
+                            );
+                            targetDirection.applyEuler(targetEuler);
+                            const targetPosition = new THREE.Vector3(
+                                light.position.x + targetDirection.x,
+                                light.position.y + targetDirection.y,
+                                light.position.z + targetDirection.z
+                            );
+
+                            return (
+                                <directionalLight
+                                    position={position}
+                                    target-position={[
+                                        targetPosition.x,
+                                        targetPosition.y,
+                                        targetPosition.z,
+                                    ]}
+                                    intensity={light.props.intensity}
+                                    color={light.props.color}
+                                    castShadow={light.castShadow}
+                                    visible={light.visible}
+                                />
+                            );
+                        case "point":
+                            return (
+                                <pointLight
+                                    position={position}
+                                    intensity={light.props.intensity}
+                                    color={light.props.color}
+                                    distance={light.props.distance || 0}
+                                    decay={light.props.decay || 2}
+                                    castShadow={light.castShadow}
+                                    visible={light.visible}
+                                />
+                            );
+                        case "spot":
+                            return (
+                                <spotLight
+                                    position={position}
+                                    rotation={rotation}
+                                    intensity={light.props.intensity}
+                                    color={light.props.color}
+                                    distance={light.props.distance || 0}
+                                    angle={light.props.angle || Math.PI / 3}
+                                    penumbra={light.props.penumbra || 0}
+                                    decay={light.props.decay || 2}
+                                    castShadow={light.castShadow}
+                                    visible={light.visible}
+                                />
+                            );
+                        case "ambient":
+                            return (
+                                <ambientLight
+                                    intensity={light.props.intensity}
+                                    color={light.props.color}
+                                    visible={light.visible}
+                                />
+                            );
+                        default:
+                            return null;
+                    }
+                })();
+
+                // Wrap the light in a clickable group
+                return (
+                    <Selectable key={light.id} id={light.id}>
+                        {lightElement}
+                    </Selectable>
+                );
             })}
         </>
     );

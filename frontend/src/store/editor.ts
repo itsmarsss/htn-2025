@@ -253,11 +253,15 @@ interface EditorStore extends EditorState {
     showChatPanel: boolean;
     setShowChatPanel: (visible: boolean) => void;
     toggleChatPanel: () => void;
+    showInspector: boolean;
+    setShowInspector: (visible: boolean) => void;
+    toggleInspector: () => void;
 }
 
 export const useEditor = create<EditorStore>()((set) => ({
     ...initialState,
     showChatPanel: true,
+    showInspector: false,
     addObject: (kind, params) =>
         set((state) => {
             const newObj = createObject(kind, undefined, params);
@@ -304,7 +308,12 @@ export const useEditor = create<EditorStore>()((set) => ({
             });
             return next;
         }),
-    select: (id) => set((state) => ({ ...state, selectedId: id })),
+    select: (id) =>
+        set((state) => ({
+            ...state,
+            selectedId: id,
+            showInspector: id !== null, // Open inspector when something is selected
+        })),
     setMode: (mode) => set((state) => ({ ...state, mode })),
     setEditorMode: (mode) => set((state) => ({ ...state, editorMode: mode })),
     setGizmoInteracting: (interacting) =>
@@ -313,6 +322,10 @@ export const useEditor = create<EditorStore>()((set) => ({
         set((state) => ({ ...state, showChatPanel: visible })),
     toggleChatPanel: () =>
         set((state) => ({ ...state, showChatPanel: !state.showChatPanel })),
+    setShowInspector: (visible) =>
+        set((state) => ({ ...state, showInspector: visible })),
+    toggleInspector: () =>
+        set((state) => ({ ...state, showInspector: !state.showInspector })),
     beginTransform: () =>
         set((state) => {
             if (state.isTransforming) return state;
@@ -486,12 +499,14 @@ export const useEditor = create<EditorStore>()((set) => ({
     addLight: (type) =>
         set((state) => {
             const newLight = createLight(type);
+            console.log("Adding light:", newLight);
             const next = produce(state, (draft) => {
                 draft.past.push(snapshot(state));
                 draft.future = [];
                 draft.lights.push(newLight);
                 draft.selectedId = newLight.id;
             });
+            console.log("Lights after adding:", next.lights);
             return next;
         }),
     updateLightTransform: (id, partial) =>
