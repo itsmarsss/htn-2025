@@ -49,7 +49,10 @@ function buildGeometryFromObject(o: SceneObject): THREE.BufferGeometry {
             const p = o.geometryParams as
                 | GeometryParamsMap["sphere"]
                 | undefined;
-            return new THREE.SphereGeometry(p?.radius ?? 0.5, 8, 8);
+            const geometry = new THREE.SphereGeometry(p?.radius ?? 0.5, 8, 8);
+            // Ensure smooth shading
+            geometry.computeVertexNormals();
+            return geometry;
         }
         case "cylinder": {
             const p = o.geometryParams as
@@ -70,12 +73,15 @@ function buildGeometryFromObject(o: SceneObject): THREE.BufferGeometry {
             const p = o.geometryParams as
                 | GeometryParamsMap["torus"]
                 | undefined;
-            return new THREE.TorusGeometry(
+            const geometry = new THREE.TorusGeometry(
                 p?.radius ?? 0.5,
                 p?.tube ?? 0.2,
                 8,
                 16
             );
+            // Ensure smooth shading
+            geometry.computeVertexNormals();
+            return geometry;
         }
         case "plane": {
             const p = o.geometryParams as

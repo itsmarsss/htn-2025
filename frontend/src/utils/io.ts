@@ -30,6 +30,8 @@ export function buildSceneFromObjects(objects: SceneObject[]): THREE.Scene {
                     p?.widthSegments ?? 8,
                     p?.heightSegments ?? 8
                 );
+                // Ensure smooth shading
+                geometry.computeVertexNormals();
                 break;
             }
             case "cylinder": {
@@ -65,6 +67,8 @@ export function buildSceneFromObjects(objects: SceneObject[]): THREE.Scene {
                     p?.radialSegments ?? 8,
                     p?.tubularSegments ?? 16
                 );
+                // Ensure smooth shading
+                geometry.computeVertexNormals();
                 break;
             }
             case "plane": {

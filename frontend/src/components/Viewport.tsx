@@ -114,15 +114,14 @@ function RenderObject({
                 const p = o.geometryParams as
                     | GeometryParamsMap["sphere"]
                     | undefined;
-                return (
-                    <sphereGeometry
-                        args={[
-                            p?.radius ?? 0.5,
-                            p?.widthSegments ?? 8,
-                            p?.heightSegments ?? 8,
-                        ]}
-                    />
+                const geometry = new THREE.SphereGeometry(
+                    p?.radius ?? 0.5,
+                    p?.widthSegments ?? 8,
+                    p?.heightSegments ?? 8
                 );
+                // Ensure smooth shading
+                geometry.computeVertexNormals();
+                return <primitive attach="geometry" object={geometry} />;
             }
             case "cylinder": {
                 const p = o.geometryParams as
@@ -157,16 +156,15 @@ function RenderObject({
                 const p = o.geometryParams as
                     | GeometryParamsMap["torus"]
                     | undefined;
-                return (
-                    <torusGeometry
-                        args={[
-                            p?.radius ?? 0.5,
-                            p?.tube ?? 0.2,
-                            p?.radialSegments ?? 8,
-                            p?.tubularSegments ?? 16,
-                        ]}
-                    />
+                const geometry = new THREE.TorusGeometry(
+                    p?.radius ?? 0.5,
+                    p?.tube ?? 0.2,
+                    p?.radialSegments ?? 8,
+                    p?.tubularSegments ?? 16
                 );
+                // Ensure smooth shading
+                geometry.computeVertexNormals();
+                return <primitive attach="geometry" object={geometry} />;
             }
             case "plane": {
                 const p = o.geometryParams as
