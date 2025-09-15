@@ -2,12 +2,15 @@ import styled, { createGlobalStyle } from "styled-components";
 import Topbar from "./Topbar";
 import Toolbar from "./Toolbar";
 import Inspector from "./Inspector";
-import Viewport from "./Viewport";
+// Viewport removed in favor of legacy Three.js renderer wired via HolohandsOverlay
 import { useShortcuts } from "../hooks/useShortcuts";
-import SnapPanel from "./SnapPanel";
 import BooleanPanel from "./BooleanPanel";
 import HolohandsOverlay from "../holo/components/HolohandsOverlay";
+import Viewport from "./Viewport";
 import ChatPanel from "./ChatPanel";
+import { useEditor } from "../store/editor";
+import VideoStream from "./VideoStream";
+import { VideoStreamProvider } from "../holo/provider/VideoStreamContext";
 
 const Global = createGlobalStyle`
   html, body, #root {
@@ -29,27 +32,29 @@ const Root = styled.div`
     height: 100vh;
 `;
 
-const ViewportWrap = styled.div`
-    position: absolute;
-    inset: 48px 0 0 0;
-`;
+// const ViewportWrap = styled.div`
+//     position: absolute;
+//     inset: 56px 0 0 0;
+// `;
 
 export function Layout() {
     useShortcuts();
+    const showChat = useEditor((s) => s.showChatPanel);
+    const editorMode = useEditor((s) => s.editorMode);
     return (
-        <Root>
-            <Global />
-            <Topbar />
-            <ViewportWrap>
-                <Viewport />
-            </ViewportWrap>
-            {/* <HolohandsOverlay /> */}
-            <Toolbar />
-            <Inspector />
-            <SnapPanel />
-            <BooleanPanel />
-            <ChatPanel />
-        </Root>
+        <VideoStreamProvider>
+            <Root>
+                <Global />
+                <Topbar />
+                {/* Render different viewport based on editor mode */}
+                {editorMode === "render" ? <Viewport /> : <HolohandsOverlay />}
+                <Toolbar />
+                <Inspector />
+                <BooleanPanel />
+                {showChat ? <ChatPanel /> : null}
+                <VideoStream />
+            </Root>
+        </VideoStreamProvider>
     );
 }
 

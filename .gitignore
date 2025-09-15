@@ -1,4 +1,6 @@
-node_modules
+node_modules/
 .env
 .venv
 .DS_Store
+old/
+.env.local
