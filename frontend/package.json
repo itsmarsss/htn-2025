@@ -30,7 +30,8 @@
     "three-csg-ts": "^3.2.0",
     "three-mesh-bvh": "^0.9.1",
     "three-stdlib": "^2.36.0",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.8",
+    "@fal-ai/client": "^1.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",

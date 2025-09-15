@@ -582,6 +582,49 @@ export function ChatPanel() {
         }
     }
 
+    async function callRodinDirect(prompt: string | undefined, attached?: File | null) {
+        try {
+            setIsLoading(true);
+            const pre = new Set(((useEditor as any).getState?.().objects ?? []).map((o: any) => o.id));
+            let imageUrl: string | undefined = undefined;
+            if (attached) {
+                try {
+                    const data = await fileToBase64(attached);
+                    imageUrl = `data:${attached.type || 'image/png'};base64,${data}`;
+                } catch {}
+            }
+            if (!imageUrl && (!prompt || !prompt.trim())) {
+                return "Provide a prompt or attach an image";
+            }
+            const body: any = {
+                ...(prompt ? { prompt } : {}),
+                ...(imageUrl ? { imageUrl } : {}),
+            };
+            const rr = await fetch(`${SERVER_URL}/api/rodin`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+            });
+            const jd = await rr.json();
+            const glbUrl = jd?.glbUrl;
+            if (!glbUrl) return "Rodin failed";
+            const resp = await fetch(glbUrl);
+            if (!resp.ok) return "Fetch GLB failed";
+            const blob = await resp.blob();
+            const file = new File([blob], "rodin.glb", { type: blob.type || 'model/gltf-binary' });
+            const objs = await importObjectsFromGLTF(file);
+            if (addSceneObjects) addSceneObjects(objs);
+            const postObjs = ((useEditor as any).getState?.().objects ?? []);
+            const newIds = postObjs.filter((o: any) => !pre.has(o.id)).map((o: any) => o.id);
+            if (newIds.length) ensurePinned(newIds);
+            return `Imported ${objs.length} object(s)`;
+        } catch {
+            return "";
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
     function checkpoint(prompt: string, response: string) {
         addCheckpoint({ prompt, response, label: prompt.slice(0, 40) });
     }
@@ -626,26 +669,40 @@ export function ChatPanel() {
         return undefined;
     }
 
-    function handleCommand(raw: string) {
+    function handleCommand(raw: string, attachedOverride?: File | null) {
         const text = raw.trim();
         if (!text) return;
         push("user", text);
+        const attachedForThis = attachedOverride ?? attachment;
 
         if (usingLLM) {
-            callLLM(text, attachment).then(({ executed, reply }) => {
+            callLLM(text, attachedForThis).then(({ executed, reply }) => {
                 push("system", reply);
                 if (executed) checkpoint(text, reply);
-                else fallbackParse(text);
+                else fallbackParse(text, attachedForThis);
             });
             return;
         }
 
-        fallbackParse(text);
+        fallbackParse(text, attachedForThis);
     }
 
-    function fallbackParse(text: string) {
+    function fallbackParse(text: string, attachedForThis?: File | null) {
         const lc = text.toLowerCase();
         let sys = "";
+
+        // rodin model generation
+        const rodinMatch = lc.match(/^rodin\b(.*)$/);
+        if (rodinMatch) {
+            const rest = (rodinMatch[1] || "").trim();
+            // support either "rodin prompt: ..." or "rodin ..."
+            const promptRaw = rest.replace(/^prompt\s*:\s*/i, "").trim();
+            callRodinDirect(promptRaw || undefined, attachedForThis).then((reply) => {
+                push("system", reply);
+                checkpoint(text, reply);
+            });
+            return;
+        }
 
         // mode
         if (/^mode\s+(translate|rotate|scale)/i.test(lc)) {
@@ -969,8 +1026,9 @@ export function ChatPanel() {
     function onSubmit(e: React.FormEvent) {
         e.preventDefault();
         const t = input;
+        const attachedForThis = attachment;
         setInput("");
-        handleCommand(t);
+        handleCommand(t, attachedForThis);
         setAttachment(null);
     }
 
