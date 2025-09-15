@@ -507,39 +507,31 @@ app.post("/api/chat", async (req, res) => {
         const isClaude = llm.model.includes("claude");
         const isGPT4o = llm.model.includes("gpt-4o");
 
-        const requestBody = {
-            model: llm.model,
-            messages,
-            tools: tools.map((t) => ({
-                type: "function",
-                function: t.function,
-            })),
-            tool_choice: "auto",
-            temperature: isClaude ? 0.2 : 0.15,
-            ...(isGPT4o && {
-                top_p: 0.9,
-                frequency_penalty: 0.1,
-                presence_penalty: 0.1,
-                max_tokens: 4000,
-            }),
-            ...(isClaude && {
-                max_tokens: 4000,
-            }),
-        };
-
-        console.log("Sending request with tools:", tools.length);
-        console.log(
-            "Tool names:",
-            tools.map((t) => t.function.name)
-        );
-
         const r = await fetch(url, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${llm.apiKey}`,
             },
-            body: JSON.stringify(requestBody),
+            body: JSON.stringify({
+                model: llm.model,
+                messages,
+                tools: tools.map((t) => ({
+                    type: "function",
+                    function: t.function,
+                })),
+                tool_choice: "auto",
+                temperature: isClaude ? 0.2 : 0.15,
+                ...(isGPT4o && {
+                    top_p: 0.9,
+                    frequency_penalty: 0.1,
+                    presence_penalty: 0.1,
+                    max_tokens: 4000,
+                }),
+                ...(isClaude && {
+                    max_tokens: 4000,
+                }),
+            }),
         });
 
         if (!r.ok) {

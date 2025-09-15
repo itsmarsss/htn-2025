@@ -639,81 +639,47 @@ export function ChatPanel() {
                 if (name === "createObjects") {
                     const objects = args.objects || [];
                     const arrangement = args.arrangement || { type: "single" };
-
+                    
                     if (arrangement.type === "scatter" && objects.length > 1) {
                         // Handle scattered arrangement
-                        const area = arrangement.area || {
-                            width: 10,
-                            height: 10,
-                            depth: 10,
-                        };
-                        const center = arrangement.center || {
-                            x: 0,
-                            y: 0,
-                            z: 0,
-                        };
-
+                        const area = arrangement.area || { width: 10, height: 10, depth: 10 };
+                        const center = arrangement.center || { x: 0, y: 0, z: 0 };
+                        
                         objects.forEach((obj: any, index: number) => {
-                            const x =
-                                center.x + (Math.random() - 0.5) * area.width;
-                            const y =
-                                center.y + (Math.random() - 0.5) * area.height;
-                            const z =
-                                center.z + (Math.random() - 0.5) * area.depth;
-
+                            const x = center.x + (Math.random() - 0.5) * area.width;
+                            const y = center.y + (Math.random() - 0.5) * area.height;
+                            const z = center.z + (Math.random() - 0.5) * area.depth;
+                            
                             addObject(obj.kind as GeometryKind, obj.params, {
                                 position: { x, y, z },
                                 rotation: obj.rotation || { x: 0, y: 0, z: 0 },
                                 scale: obj.scale || { x: 1, y: 1, z: 1 },
                                 color: obj.color,
-                                name: obj.name || `${obj.kind}${index + 1}`,
+                                name: obj.name || `${obj.kind}${index + 1}`
                             });
                         });
-
-                        return {
-                            executed: true,
-                            reply: `Scattered ${objects.length} ${
-                                objects[0]?.kind || "objects"
-                            } in ${area.width}x${area.height}x${
-                                area.depth
-                            } area`,
-                        };
-                    } else if (
-                        arrangement.type === "line" &&
-                        objects.length > 1
-                    ) {
+                        
+                        return { executed: true, reply: `Scattered ${objects.length} ${objects[0]?.kind || 'objects'} in ${area.width}x${area.height}x${area.depth} area` };
+                    } else if (arrangement.type === "line" && objects.length > 1) {
                         // Handle linear arrangement
-                        const spacing = arrangement.spacing || {
-                            x: 2,
-                            y: 0,
-                            z: 0,
-                        };
-                        const startPos = arrangement.center || {
-                            x: 0,
-                            y: 0,
-                            z: 0,
-                        };
-
+                        const spacing = arrangement.spacing || { x: 2, y: 0, z: 0 };
+                        const startPos = arrangement.center || { x: 0, y: 0, z: 0 };
+                        
                         objects.forEach((obj: any, index: number) => {
-                            const x = startPos.x + spacing.x * index;
-                            const y = startPos.y + spacing.y * index;
-                            const z = startPos.z + spacing.z * index;
-
+                            const x = startPos.x + (spacing.x * index);
+                            const y = startPos.y + (spacing.y * index);
+                            const z = startPos.z + (spacing.z * index);
+                            
                             addObject(obj.kind as GeometryKind, obj.params, {
                                 position: { x, y, z },
                                 rotation: obj.rotation || { x: 0, y: 0, z: 0 },
                                 scale: obj.scale || { x: 1, y: 1, z: 1 },
                                 color: obj.color,
-                                name: obj.name || `${obj.kind}${index + 1}`,
+                                name: obj.name || `${obj.kind}${index + 1}`
                             });
                         });
-
-                        return {
-                            executed: true,
-                            reply: `Created ${objects.length} ${
-                                objects[0]?.kind || "objects"
-                            } in a line`,
-                        };
+                        
+                        return { executed: true, reply: `Created ${objects.length} ${objects[0]?.kind || 'objects'} in a line` };
                     } else {
                         // Handle single objects or custom positioning
                         objects.forEach((obj: any, index: number) => {
@@ -722,122 +688,79 @@ export function ChatPanel() {
                                 rotation: obj.rotation || { x: 0, y: 0, z: 0 },
                                 scale: obj.scale || { x: 1, y: 1, z: 1 },
                                 color: obj.color,
-                                name: obj.name || `${obj.kind}${index + 1}`,
+                                name: obj.name || `${obj.kind}${index + 1}`
                             });
                         });
-
-                        return {
-                            executed: true,
-                            reply: `Created ${objects.length} ${
-                                objects[0]?.kind || "object(s)"
-                            }`,
-                        };
+                        
+                        return { executed: true, reply: `Created ${objects.length} ${objects[0]?.kind || 'object(s)'}` };
                     }
                 }
                 if (name === "modifyObjects") {
                     const targets = args.targets || [];
                     const operation = args.operation || "update";
                     const isDelta = args.isDelta || false;
-
+                    
                     targets.forEach((target: any) => {
                         const id = target.id;
-
+                        
                         if (operation === "delete") {
                             // Find object by ID or name
-                            const obj = objects.find(
-                                (o: any) => o.id === id || o.name === id
-                            );
+                            const obj = objects.find((o: any) => o.id === id || o.name === id);
                             if (obj) {
                                 deleteSelected();
                             }
                         } else if (operation === "duplicate") {
                             // Find object by ID or name
-                            const obj = objects.find(
-                                (o: any) => o.id === id || o.name === id
-                            );
+                            const obj = objects.find((o: any) => o.id === id || o.name === id);
                             if (obj) {
                                 duplicateSelected();
                             }
                         } else if (operation === "select") {
                             // Find object by ID or name
-                            const obj = objects.find(
-                                (o: any) => o.id === id || o.name === id
-                            );
+                            const obj = objects.find((o: any) => o.id === id || o.name === id);
                             if (obj) {
                                 select(obj.id);
                             }
                         } else if (operation === "update") {
                             // Update object properties
                             if (target.position) {
-                                updateTransform(
-                                    id,
-                                    { position: target.position },
-                                    isDelta
-                                );
+                                updateTransform(id, { position: target.position }, isDelta);
                             }
                             if (target.rotation) {
-                                updateTransform(
-                                    id,
-                                    { rotation: target.rotation },
-                                    isDelta
-                                );
+                                updateTransform(id, { rotation: target.rotation }, isDelta);
                             }
                             if (target.scale) {
-                                updateTransform(
-                                    id,
-                                    { scale: target.scale },
-                                    isDelta
-                                );
+                                updateTransform(id, { scale: target.scale }, isDelta);
                             }
                             if (target.color) {
                                 updateMaterial(id, { color: target.color });
                             }
                             if (target.name) {
                                 // Update name - this would need to be implemented in the store
-                                console.log(
-                                    "Name update not implemented yet:",
-                                    target.name
-                                );
+                                console.log("Name update not implemented yet:", target.name);
                             }
                             if (target.params) {
                                 updateGeometry(id, target.params);
                             }
                         }
                     });
-
-                    return {
-                        executed: true,
-                        reply: `${operation} operation completed on ${targets.length} object(s)`,
-                    };
+                    
+                    return { executed: true, reply: `${operation} operation completed on ${targets.length} object(s)` };
                 }
                 if (name === "performBoolean") {
                     const operation = args.operation;
                     const objectA = args.objectA;
                     const objectB = args.objectB;
-
+                    
                     // Find objects by ID or name
-                    const objA = objects.find(
-                        (o: any) => o.id === objectA || o.name === objectA
-                    );
-                    const objB = objects.find(
-                        (o: any) => o.id === objectB || o.name === objectB
-                    );
-
+                    const objA = objects.find((o: any) => o.id === objectA || o.name === objectA);
+                    const objB = objects.find((o: any) => o.id === objectB || o.name === objectB);
+                    
                     if (objA && objB) {
-                        booleanOp(
-                            operation as "union" | "subtract" | "intersect",
-                            objA.id,
-                            objB.id
-                        );
-                        return {
-                            executed: true,
-                            reply: `Boolean ${operation} completed between ${objA.name} and ${objB.name}`,
-                        };
+                        booleanOp(operation as "union" | "subtract" | "intersect", objA.id, objB.id);
+                        return { executed: true, reply: `Boolean ${operation} completed between ${objA.name} and ${objB.name}` };
                     } else {
-                        return {
-                            executed: false,
-                            reply: `Could not find both objects for boolean operation`,
-                        };
+                        return { executed: false, reply: `Could not find both objects for boolean operation` };
                     }
                 }
                 if (name === "generateModel") {
