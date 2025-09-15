@@ -1,8 +1,23 @@
 # ShapeShift
 
+## How to run
+
+1. Ensure you have Python and Node installed
+2. (recommended) create a virtual environment with `python -m venv .venv` and activate it with `source .venv/bin/activate`
+3. Install the dependencies with `pip install -r requirements.txt`
+4. Run the backend with `python backend/webserver.py`
+5. Run the following commands in a separate terminal to set up the frontend:
+    - `cd frontend`
+    - `npm install`
+    - `npm run dev`
+6. Open the browser and go to `http://localhost:5173`
+7. Enjoy! (note: the AI agent is not currently configured to work properly, so a fallback mode is used instead)
+
+A production version will be released soon.
+
 ## Inspiration
 
-We've always been fascinated by the futuristic interfaces in movies like _Minority Report_ and _Iron Man_. Traditional 3D modeling software, while powerful, often has a steep learning curve and relies on clunky keyboard shortcuts and mouse clicks. We asked ourselves: what if we could sculpt 3D objects as naturally as if we were molding clay with our own hands? Our inspiration was to **bridge the gap between human intuition and digital creation**, building an accessible, immersive, and magical 3D modeling experience right in the browser. We wanted to create a tool that feels less like operating a machine and more like an extension of our own creativity.
+We've always been fascinated by the futuristic interfaces in movies like *Minority Report* and *Iron Man*. Traditional 3D modeling software, while powerful, often has a steep learning curve and relies on clunky keyboard shortcuts and mouse clicks. We asked ourselves: what if we could sculpt 3D objects as naturally as if we were molding clay with our own hands? Our inspiration was to **bridge the gap between human intuition and digital creation**, building an accessible, immersive, and magical 3D modeling experience right in the browser. We wanted to create a tool that feels less like operating a machine and more like an extension of our own creativity.
 
 ---
 
@@ -10,9 +25,11 @@ We've always been fascinated by the futuristic interfaces in movies like _Minori
 
 ShapeShift is an innovative, browser-based 3D modeling platform that transforms your webcam into a powerful creation tool. It allows users to interact with a 3D environment in two revolutionary ways:
 
--   **👋 Real-Time Gesture Control:** Using your hands, you can directly manipulate objects in the 3D scene. ShapeShift tracks your hand movements in real-time, allowing you to grab, move, rotate, and scale objects with intuitive gestures, eliminating the need for a mouse and keyboard.
--   **🤖 AI Agent Assistant:** ShapeShift features an intelligent AI assistant that understands natural language. You can simply tell the AI what you want to create or modify. For example, you can say, "Create a red sphere and a blue cube, then place the sphere on top of the cube," and the AI will execute the commands.
--   **✨ AI-Powered 3D Model Generation:** Stuck for ideas? You can describe a concept like "a futuristic spaceship" or "a stylized tree," and our integrated generative AI will create a detailed 3D model for you on the fly, ready to be imported and manipulated in your scene.
+* **👋 Real-Time Gesture Control:** Using your hands, you can directly manipulate objects in the 3D scene. ShapeShift tracks your hand movements in real-time, allowing you to grab, move, rotate, and scale objects with intuitive gestures, eliminating the need for a mouse and keyboard.
+* **🤖 AI Agent Assistant:** ShapeShift features an intelligent AI assistant that understands natural language. You can simply tell the AI what you want to create or modify. For example, you can say, "Create a red sphere and a blue cube, then place the sphere on top of the cube," and the AI will execute the commands.
+* **✨ AI-Powered 3D Model Generation:** Stuck for ideas? You can describe a concept like "a futuristic spaceship" or "a stylized tree," and our integrated generative AI will create a detailed 3D model for you on the fly, ready to be imported and manipulated in your scene.
+
+
 
 ---
 
@@ -20,11 +37,11 @@ ShapeShift is an innovative, browser-based 3D modeling platform that transforms 
 
 ShapeShift is built on a modern, multi-faceted tech stack designed for real-time performance and intelligence.
 
--   **Frontend:** The entire user interface is a dynamic web application built with **React**, **TypeScript**, and **Vite**. For rendering the 3D environment, we used the powerful **Three.js** library, primarily through the declarative APIs of **@react-three/fiber** and **@react-three/drei**. Global state management is handled efficiently by **Zustand**.
+* **Frontend:** The entire user interface is a dynamic web application built with **React**, **TypeScript**, and **Vite**. For rendering the 3D environment, we used the powerful **Three.js** library, primarily through the declarative APIs of **@react-three/fiber** and **@react-three/drei**. Global state management is handled efficiently by **Zustand**.
 
--   **Backend (Computer Vision):** The gesture-control engine is powered by a **Python** backend using **Flask** and **Eventlet** for high-performance WebSocket communication. We use **OpenCV** to capture the video feed from the user's webcam and the **MediaPipe** library to perform real-time hand landmark detection. This landmark data is then streamed to the frontend.
+* **Backend (Computer Vision):** The gesture-control engine is powered by a **Python** backend using **Flask** and **Eventlet** for high-performance WebSocket communication. We use **OpenCV** to capture the video feed from the user's webcam and the **MediaPipe** library to perform real-time hand landmark detection. This landmark data is then streamed to the frontend.
 
--   **Backend (AI Agent):** The AI assistant is orchestrated by a **Node.js** server using **Express**. This server acts as a middleware that defines a set of tools (functions) the AI can use to manipulate the 3D scene. It integrates with LLM providers (like Martian) and the **Fal AI** API for generative 3D model creation from text prompts.
+* **Backend (AI Agent):** The AI assistant is orchestrated by a **Node.js** server using **Express**. This server acts as a middleware that defines a set of tools (functions) the AI can use to manipulate the 3D scene. It integrates with LLM providers (like Martian) and the **Fal AI** API for generative 3D model creation from text prompts.
 
 The components communicate seamlessly: the Python backend streams hand data to the React frontend via WebSockets, while the frontend sends user prompts to the Node.js server to trigger AI actions.
 
@@ -64,7 +81,7 @@ On the AI front, we learned how to effectively design and implement a **tool-usi
 
 The future is bright and three-dimensional! We have many ideas for where to take ShapeShift next:
 
--   **Expanded Gesture Library:** We plan to introduce more complex and two-handed gestures for advanced actions like scaling the entire scene, drawing custom shapes, or performing intricate sculpting operations.
--   **Multi-User Collaboration:** We want to turn ShapeShift into a collaborative space where multiple users can join a session and build together in real-time, seeing each other's virtual hands.
--   **AR/VR Integration:** The ultimate goal is to break free from the 2D screen entirely. We plan to adapt our interaction model for augmented and virtual reality headsets to create a fully immersive 3D modeling environment.
--   **Smarter AI:** We will continue to enhance our AI's capabilities, enabling it to understand more complex, multi-step commands and maintain a better contextual awareness of the user's project goals.
+* **Expanded Gesture Library:** We plan to introduce more complex and two-handed gestures for advanced actions like scaling the entire scene, drawing custom shapes, or performing intricate sculpting operations.
+* **Multi-User Collaboration:** We want to turn ShapeShift into a collaborative space where multiple users can join a session and build together in real-time, seeing each other's virtual hands.
+* **AR/VR Integration:** The ultimate goal is to break free from the 2D screen entirely. We plan to adapt our interaction model for augmented and virtual reality headsets to create a fully immersive 3D modeling environment.
+* **Smarter AI:** We will continue to enhance our AI's capabilities, enabling it to understand more complex, multi-step commands and maintain a better contextual awareness of the user's project goals.
