@@ -57,6 +57,7 @@ const tools = [
     {
         type: "function",
         function: {
+<<<<<<< Updated upstream
             name: "createObjects",
             description:
                 "Create one or more 3D objects with flexible positioning and properties. Handles single objects, multiple objects with spacing, scattered arrangements, and custom positioning.",
@@ -172,12 +173,34 @@ const tools = [
                     },
                 },
                 required: ["objects"],
+=======
+            name: "addObject",
+            description: "Add a primitive to the scene",
+            parameters: {
+                type: "object",
+                properties: {
+                    kind: {
+                        type: "string",
+                        enum: [
+                            "box",
+                            "sphere",
+                            "cylinder",
+                            "cone",
+                            "torus",
+                            "plane",
+                        ],
+                    },
+                    params: { type: "object", additionalProperties: true },
+                },
+                required: ["kind"],
+>>>>>>> Stashed changes
             },
         },
     },
     {
         type: "function",
         function: {
+<<<<<<< Updated upstream
             name: "modifyObjects",
             description:
                 "Modify existing objects' properties, transforms, materials, or perform operations like duplicate/delete/select",
@@ -242,20 +265,72 @@ const tools = [
                         type: "string",
                         enum: ["update", "duplicate", "delete", "select"],
                         description: "Type of operation to perform",
-                    },
-                    isDelta: {
-                        type: "boolean",
-                        description:
-                            "If true, transform values are relative to current values",
-                    },
-                },
-                required: ["targets", "operation"],
+=======
+            name: "selectObject",
+            description: "Select an object by id or name",
+            parameters: {
+                type: "object",
+                properties: { target: { type: "string" } },
+                required: ["target"],
             },
         },
     },
     {
         type: "function",
         function: {
+            name: "updateTransform",
+            description:
+                "Update position, rotation (radians), or scale. Use deltas when requested to move/rotate/scale by amounts.",
+            parameters: {
+                type: "object",
+                properties: {
+                    id: { type: "string" },
+                    position: {
+                        type: "object",
+                        properties: {
+                            x: { type: "number" },
+                            y: { type: "number" },
+                            z: { type: "number" },
+                        },
+                    },
+                    rotation: {
+                        type: "object",
+                        properties: {
+                            x: { type: "number" },
+                            y: { type: "number" },
+                            z: { type: "number" },
+                        },
+                    },
+                    scale: {
+                        type: "object",
+                        properties: {
+                            x: { type: "number" },
+                            y: { type: "number" },
+                            z: { type: "number" },
+                        },
+>>>>>>> Stashed changes
+                    },
+                    isDelta: {
+                        type: "boolean",
+                        description:
+<<<<<<< Updated upstream
+                            "If true, transform values are relative to current values",
+                    },
+                },
+                required: ["targets", "operation"],
+=======
+                            "If true, apply values as deltas (additive). Otherwise set absolute.",
+                    },
+                },
+                required: ["id"],
+>>>>>>> Stashed changes
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+<<<<<<< Updated upstream
             name: "performBoolean",
             description:
                 "Perform boolean operations between objects (union, subtract, intersect)",
@@ -277,12 +352,165 @@ const tools = [
                     },
                 },
                 required: ["operation", "objectA", "objectB"],
+=======
+            name: "updateTransformMany",
+            description:
+                "Batch update transforms for multiple objects. Use isDelta true for relative moves.",
+            parameters: {
+                type: "object",
+                properties: {
+                    items: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            properties: {
+                                id: { type: "string" },
+                                target: { type: "string" },
+                                position: {
+                                    type: "object",
+                                    properties: {
+                                        x: { type: "number" },
+                                        y: { type: "number" },
+                                        z: { type: "number" },
+                                    },
+                                },
+                                rotation: {
+                                    type: "object",
+                                    properties: {
+                                        x: { type: "number" },
+                                        y: { type: "number" },
+                                        z: { type: "number" },
+                                    },
+                                },
+                                scale: {
+                                    type: "object",
+                                    properties: {
+                                        x: { type: "number" },
+                                        y: { type: "number" },
+                                        z: { type: "number" },
+                                    },
+                                },
+                                isDelta: { type: "boolean" },
+                            },
+                        },
+                    },
+                },
+                required: ["items"],
             },
         },
     },
     {
         type: "function",
         function: {
+            name: "updateMaterial",
+            description:
+                "Set material color (hex), metalness, roughness, opacity",
+            parameters: {
+                type: "object",
+                properties: {
+                    id: { type: "string" },
+                    color: { type: "string" },
+                    metalness: { type: "number" },
+                    roughness: { type: "number" },
+                    opacity: { type: "number" },
+                    transparent: { type: "boolean" },
+                },
+                required: ["id"],
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "updateMaterialMany",
+            description: "Batch update materials for multiple objects.",
+            parameters: {
+                type: "object",
+                properties: {
+                    items: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            properties: {
+                                id: { type: "string" },
+                                target: { type: "string" },
+                                color: { type: "string" },
+                                metalness: { type: "number" },
+                                roughness: { type: "number" },
+                                opacity: { type: "number" },
+                                transparent: { type: "boolean" },
+                            },
+                        },
+                    },
+                },
+                required: ["items"],
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "updateGeometry",
+            description: "Change geometry kind and optional params",
+            parameters: {
+                type: "object",
+                properties: {
+                    id: { type: "string" },
+                    kind: {
+                        type: "string",
+                        enum: [
+                            "box",
+                            "sphere",
+                            "cylinder",
+                            "cone",
+                            "torus",
+                            "plane",
+                        ],
+                    },
+                    params: { type: "object", additionalProperties: true },
+                },
+                required: ["id", "kind"],
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "duplicateSelected",
+            parameters: { type: "object", properties: {} },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "deleteSelected",
+            parameters: { type: "object", properties: {} },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "booleanOp",
+            description: "Run boolean operation between two objects A and B",
+            parameters: {
+                type: "object",
+                properties: {
+                    op: {
+                        type: "string",
+                        enum: ["union", "subtract", "intersect"],
+                    },
+                    a: { type: "string" },
+                    b: { type: "string" },
+                },
+                required: ["op", "a", "b"],
+>>>>>>> Stashed changes
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+<<<<<<< Updated upstream
             name: "generateModel",
             description: "Generate a 3D model using AI",
             parameters: {
@@ -304,6 +532,193 @@ const tools = [
                     },
                 },
                 required: ["prompt"],
+=======
+            name: "undo",
+            parameters: { type: "object", properties: {} },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "redo",
+            parameters: { type: "object", properties: {} },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "toggleSnap",
+            parameters: {
+                type: "object",
+                properties: { enabled: { type: "boolean" } },
+                required: ["enabled"],
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "setSnap",
+            parameters: {
+                type: "object",
+                properties: {
+                    translateSnap: { type: "number" },
+                    rotateSnap: { type: "number" },
+                    scaleSnap: { type: "number" },
+                },
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "setMode",
+            parameters: {
+                type: "object",
+                properties: {
+                    mode: {
+                        type: "string",
+                        enum: ["translate", "rotate", "scale"],
+                    },
+                },
+                required: ["mode"],
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "generateModelRodin",
+            description:
+                "Generate a 3D model via Fal Rodin and return a GLB URL. Provide either imageUrl(s) or prompt.",
+            parameters: {
+                type: "object",
+                properties: {
+                    imageUrl: { type: "string" },
+                    prompt: { type: "string" },
+                    quality: {
+                        type: "string",
+                        enum: ["high", "medium", "low", "extra-low"],
+                    },
+                    material: { type: "string", enum: ["PBR", "Shaded"] },
+                },
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "addRepeatedObjects",
+            description:
+                "Add N primitives in a line with proper spacing. Use for creating objects in a row/column pattern.",
+            parameters: {
+                type: "object",
+                properties: {
+                    kind: {
+                        type: "string",
+                        enum: [
+                            "box",
+                            "sphere",
+                            "cylinder",
+                            "cone",
+                            "torus",
+                            "plane",
+                        ],
+                    },
+                    count: { type: "integer", minimum: 1 },
+                    params: { type: "object", additionalProperties: true },
+                    spacingX: { type: "number" },
+                    spacingY: { type: "number" },
+                    spacingZ: { type: "number" },
+                    startX: { type: "number" },
+                    startY: { type: "number" },
+                    startZ: { type: "number" },
+                },
+                required: ["kind", "count"],
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "scatterObjects",
+            description:
+                "Scatter N objects randomly within a 3D area. Use for creating objects spread out in space.",
+            parameters: {
+                type: "object",
+                properties: {
+                    kind: {
+                        type: "string",
+                        enum: [
+                            "box",
+                            "sphere",
+                            "cylinder",
+                            "cone",
+                            "torus",
+                            "plane",
+                        ],
+                    },
+                    count: { type: "integer", minimum: 1 },
+                    params: { type: "object", additionalProperties: true },
+                    areaWidth: {
+                        type: "number",
+                        description: "Width of the scatter area",
+                    },
+                    areaHeight: {
+                        type: "number",
+                        description: "Height of the scatter area",
+                    },
+                    areaDepth: {
+                        type: "number",
+                        description: "Depth of the scatter area",
+                    },
+                    centerX: {
+                        type: "number",
+                        description: "X center of scatter area",
+                    },
+                    centerY: {
+                        type: "number",
+                        description: "Y center of scatter area",
+                    },
+                    centerZ: {
+                        type: "number",
+                        description: "Z center of scatter area",
+                    },
+                },
+                required: ["kind", "count"],
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "updateName",
+            description: "Rename an object by id or exact name",
+            parameters: {
+                type: "object",
+                properties: {
+                    id: { type: "string" },
+                    target: { type: "string" },
+                    name: { type: "string" },
+                },
+                required: ["name"],
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "updateNamesBulk",
+            description:
+                "Rename multiple objects at once. Provide arrays of names and targetIds.",
+            parameters: {
+                type: "object",
+                properties: {
+                    names: { type: "array", items: { type: "string" } },
+                    targetIds: { type: "array", items: { type: "string" } },
+                },
+                required: ["names"],
+>>>>>>> Stashed changes
             },
         },
     },
@@ -318,6 +733,7 @@ const systemPrompt = `You are an expert 3D modeling copilot with exceptional spa
 - You consider object sizes, spacing, and scene boundaries when placing objects
 - You can interpret spatial language like "scatter", "arrange in a line", "spread out", "cluster together"
 
+<<<<<<< Updated upstream
 🔧 COMPREHENSIVE TOOL USAGE:
 - Use createObjects for all object creation - single objects, multiple objects, scattered arrangements
 - Use modifyObjects for all object modifications - transforms, materials, names, operations
@@ -326,6 +742,17 @@ const systemPrompt = `You are an expert 3D modeling copilot with exceptional spa
 
 📐 SPATIAL CALCULATIONS:
 - When user specifies "10x10x10 area", use area: {width: 10, height: 10, depth: 10}
+=======
+🔧 TOOL SELECTION FOR SPATIAL PATTERNS:
+- "scatter X objects in Y×Z×W area" → Use scatterObjects with exact area dimensions
+- "add X objects in a line/row" → Use addRepeatedObjects with proper spacing
+- "arrange X objects in a grid" → Use addRepeatedObjects with 2D spacing
+- "place X objects randomly" → Use scatterObjects with reasonable area size
+- "add X objects spaced apart" → Use addRepeatedObjects with calculated spacing
+
+📐 SPATIAL CALCULATIONS:
+- When user specifies "10x10x10 area", use areaWidth: 10, areaHeight: 10, areaDepth: 10
+>>>>>>> Stashed changes
 - For spacing, consider object dimensions: spacing should be at least 1.2x the largest object dimension
 - For scattered objects, ensure the area is large enough to avoid clustering
 - Pay attention to scene bounds and existing object positions in the context
@@ -334,6 +761,7 @@ const systemPrompt = `You are an expert 3D modeling copilot with exceptional spa
 - Prefer tool calls over text responses whenever possible
 - Units: position/scale in editor units. Rotation is in radians; convert degrees to radians
 - For "move/rotate/scale by" amounts, use isDelta: true
+<<<<<<< Updated upstream
 - Always choose the tool that best matches the spatial pattern requested
 - Use createObjects with arrangement.type="scatter" for scattered arrangements
 - Use createObjects with arrangement.type="line" for linear arrangements
@@ -364,6 +792,26 @@ app.get("/api/health", (req, res) => {
     });
 });
 
+=======
+- For multiple object operations, use batch functions (updateTransformMany, updateMaterialMany)
+- For renaming multiple objects, use updateNamesBulk
+- Always choose the tool that best matches the spatial pattern requested
+
+Only produce natural language when no tool call is appropriate.`;
+
+app.get("/api/health", (req, res) => {
+    const llm = getLlms();
+    res.json({
+        ok: !!llm,
+        provider: llm?.provider ?? null,
+        baseUrl: llm?.baseUrl ?? null,
+        model: llm?.model ?? null,
+        hasKey: !!llm?.apiKey,
+        falConfigured: !!process.env.FAL_KEY,
+    });
+});
+
+>>>>>>> Stashed changes
 app.get("/api/models", (req, res) => {
     const llm = getLlms();
     if (!llm) {
@@ -466,6 +914,7 @@ app.post("/api/chat", async (req, res) => {
             error: "No LLM API key configured. Set MARTIAN_API_KEY (+ optional MARTIAN_BASE_URL) or OPENAI_API_KEY.",
         });
 
+<<<<<<< Updated upstream
     const {
         user,
         messages: chatHistory,
@@ -477,6 +926,12 @@ app.post("/api/chat", async (req, res) => {
         return res.status(400).json({ error: "Missing user prompt" });
 
     // Build messages array with chat history
+=======
+    const { user, sceneSummary, focusContext } = req.body || {};
+    if (!user || typeof user !== "string")
+        return res.status(400).json({ error: "Missing user prompt" });
+
+>>>>>>> Stashed changes
     const messages = [
         { role: "system", content: systemPrompt },
         focusContext
@@ -485,6 +940,7 @@ app.post("/api/chat", async (req, res) => {
         sceneSummary
             ? { role: "system", content: `Scene: ${sceneSummary}` }
             : null,
+<<<<<<< Updated upstream
     ].filter(Boolean);
 
     // Add chat history if provided
@@ -500,6 +956,11 @@ app.post("/api/chat", async (req, res) => {
         messages.push({ role: "user", content: user });
     }
 
+=======
+        { role: "user", content: user },
+    ].filter(Boolean);
+
+>>>>>>> Stashed changes
     const url = `${llm.baseUrl.replace(/\/$/, "")}/chat/completions`;
 
     try {
@@ -507,6 +968,7 @@ app.post("/api/chat", async (req, res) => {
         const isClaude = llm.model.includes("claude");
         const isGPT4o = llm.model.includes("gpt-4o");
 
+<<<<<<< Updated upstream
         const requestBody = {
             model: llm.model,
             messages,
@@ -533,12 +995,15 @@ app.post("/api/chat", async (req, res) => {
             tools.map((t) => t.function.name)
         );
 
+=======
+>>>>>>> Stashed changes
         const r = await fetch(url, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${llm.apiKey}`,
             },
+<<<<<<< Updated upstream
             body: JSON.stringify(requestBody),
         });
 
@@ -561,6 +1026,50 @@ app.post("/api/chat", async (req, res) => {
         });
     }
 });
+=======
+            body: JSON.stringify({
+                model: llm.model,
+                temperature: isClaude ? 0.2 : 0.15, // Slightly higher for spatial creativity
+                messages,
+                tools,
+                tool_choice: "auto",
+                // Additional parameters for better spatial reasoning
+                ...(isGPT4o && {
+                    top_p: 0.9,
+                    frequency_penalty: 0.1,
+                    presence_penalty: 0.1,
+                }),
+                ...(isClaude && {
+                    top_p: 0.9,
+                    max_tokens: 4000,
+                }),
+            }),
+        });
+        const data = await r.json();
+        if (!r.ok) {
+            console.error("Upstream error", data);
+            return res
+                .status(500)
+                .json({ error: "Upstream error", details: data });
+        }
+        return res.json(data);
+    } catch (err) {
+        console.error("Request failed", err);
+        return res
+            .status(500)
+            .json({ error: "Request failed", details: String(err) });
+    }
+});
+
+console.log(`[FAL] configured=${!!process.env.FAL_KEY}`);
+
+const detected = getLlms();
+console.log(
+    `[LLM] provider=${detected?.provider ?? "none"} base=${
+        detected?.baseUrl ?? "n/a"
+    } model=${detected?.model ?? "n/a"} hasKey=${!!detected?.apiKey}`
+);
+>>>>>>> Stashed changes
 
 app.listen(PORT, () => {
     console.log(`LLM server listening on http://localhost:${PORT}`);

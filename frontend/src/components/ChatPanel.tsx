@@ -613,7 +613,10 @@ export function ChatPanel() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     user: userText,
+<<<<<<< Updated upstream
                     messages: messages, // Include chat history
+=======
+>>>>>>> Stashed changes
                     sceneSummary,
                     focusContext,
                     attachment: attachmentPayload,
@@ -1110,6 +1113,64 @@ export function ChatPanel() {
                     const kind = args.kind as GeometryKind;
                     const count = Math.max(1, Number(args.count || 1));
                     const params = args.params;
+<<<<<<< Updated upstream
+                    const areaWidth = Number(args.areaWidth || 10);
+                    const areaHeight = Number(args.areaHeight || 10);
+                    const areaDepth = Number(args.areaDepth || 10);
+                    const centerX = Number(args.centerX || 0);
+                    const centerY = Number(args.centerY || 0);
+                    const centerZ = Number(args.centerZ || 0);
+
+=======
+                    const sx = Number(
+                        args.spacingX ??
+                            (params?.width ?? params?.radius ?? 1.0) * 1.2
+                    );
+                    const sy = Number(args.spacingY ?? 0);
+                    const sz = Number(args.spacingZ ?? 0);
+                    const startX = Number(args.startX ?? 0);
+                    const startY = Number(args.startY ?? 0);
+                    const startZ = Number(args.startZ ?? 0);
+>>>>>>> Stashed changes
+                    let created = 0;
+                    const createdIds: string[] = [];
+
+                    for (let i = 0; i < count; i++) {
+                        addObject(kind, params);
+                        const state = (useEditor as any).getState?.() || {};
+                        const id = state.selectedId as string | undefined;
+                        if (id) {
+                            // Generate random position within the specified area
+                            const x =
+                                centerX + (Math.random() - 0.5) * areaWidth;
+                            const y =
+                                centerY + (Math.random() - 0.5) * areaHeight;
+                            const z =
+                                centerZ + (Math.random() - 0.5) * areaDepth;
+
+                            updateTransform(id, {
+                                position: { x, y, z },
+                            });
+                            ensurePinned(id);
+                            createdIds.push(id);
+                            created++;
+                        }
+                    }
+
+<<<<<<< Updated upstream
+=======
+                    // Store the created IDs in a global variable for potential bulk operations
+                    (window as any).lastCreatedObjectIds = createdIds;
+
+                    return {
+                        executed: true,
+                        reply: `Added ${created} ${kind}(s)`,
+                    };
+                }
+                if (name === "scatterObjects") {
+                    const kind = args.kind as GeometryKind;
+                    const count = Math.max(1, Number(args.count || 1));
+                    const params = args.params;
                     const areaWidth = Number(args.areaWidth || 10);
                     const areaHeight = Number(args.areaHeight || 10);
                     const areaDepth = Number(args.areaDepth || 10);
@@ -1142,6 +1203,7 @@ export function ChatPanel() {
                         }
                     }
 
+>>>>>>> Stashed changes
                     // Store the created IDs for potential bulk operations
                     (window as any).lastCreatedObjectIds = createdIds;
 
@@ -1666,6 +1728,7 @@ export function ChatPanel() {
             return;
         }
 
+<<<<<<< Updated upstream
         // scatter them: "scatter them" - use last created objects
         if (
             lc === "scatter them" ||
@@ -1706,6 +1769,8 @@ export function ChatPanel() {
             }
         }
 
+=======
+>>>>>>> Stashed changes
         // scatter objects: "scatter 5 boxes in 10x10x10 area"
         const scatterMatch = lc.match(
             /^scatter\s+(\d+)\s+(boxes?|spheres?|cylinders?|cones?|tori?|planes?)\s+in\s+(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)\s+area(?:\s+centered\s+at\s+\(?(-?\d+(?:\.\d+)?),?\s*(-?\d+(?:\.\d+)?),?\s*(-?\d+(?:\.\d+)?)\)?)?/
