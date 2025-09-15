@@ -18,8 +18,7 @@ const Global = createGlobalStyle`
   }
   body {
     margin: 0;
-    background: #0b0e14;
-    color: #e6e9ef;
+    background: #;
     overflow: hidden;
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   }

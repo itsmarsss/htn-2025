@@ -34,12 +34,21 @@ const Header = styled.div`
 `;
 
 const Toggle = styled.button`
-    background: #12141a;
+    background: rgba(0, 0, 0, 0.8);
     color: #e6e9ef;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 8px;
     padding: 4px 8px;
     font-size: 12px;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+        background: rgba(30, 30, 30, 0.8);
+    }
+
+    &:active {
+        background: rgba(50, 50, 50, 0.8);
+    }
 `;
 
 const History = styled.div`
@@ -64,12 +73,21 @@ const HistoryItem = styled.div`
 `;
 
 const SmallBtn = styled.button`
-    background: #0f1116;
+    background: rgba(0, 0, 0, 0.8);
     color: #e6e9ef;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 6px;
     padding: 4px 6px;
     font-size: 12px;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+        background: rgba(30, 30, 30, 0.8);
+    }
+
+    &:active {
+        background: rgba(50, 50, 50, 0.8);
+    }
 `;
 
 const Messages = styled.div`
@@ -110,11 +128,20 @@ const TextInput = styled.input`
 `;
 
 const SendBtn = styled.button`
-    background: rgba(18, 20, 26, 0.9);
+    background: rgba(0, 0, 0, 0.8);
     color: #e6e9ef;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 10px;
     padding: 8px 12px;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+        background: rgba(30, 30, 30, 0.8);
+    }
+
+    &:active {
+        background: rgba(50, 50, 50, 0.8);
+    }
 `;
 
 const AttachBtn = styled.button`
@@ -215,7 +242,9 @@ export function ChatPanel() {
 
     function pinSelected() {
         if (!selectedId) return;
-        setPinnedIds((prev) => (prev.includes(selectedId) ? prev : [...prev, selectedId]));
+        setPinnedIds((prev) =>
+            prev.includes(selectedId) ? prev : [...prev, selectedId]
+        );
     }
 
     function unpin(id: string) {
@@ -242,12 +271,75 @@ export function ChatPanel() {
         const kind = o.geometry;
         const p: any = o.geometryParams || {};
         const eff = {
-            width: kind === "box" ? (p.width ?? 1) * o.scale.x : kind === "sphere" ? 2 * (p.radius ?? 0.5) * o.scale.x : kind === "cylinder" ? 2 * Math.max(p.radiusTop ?? p.radius ?? 0.5, p.radiusBottom ?? p.radius ?? 0.5) * o.scale.x : kind === "cone" ? 2 * (p.radius ?? 0.5) * o.scale.x : kind === "torus" ? 2 * (p.radius ?? 0.5) * o.scale.x : kind === "plane" ? (p.width ?? 1) * o.scale.x : 1,
-            height: kind === "box" ? (p.height ?? 1) * o.scale.y : kind === "sphere" ? 2 * (p.radius ?? 0.5) * o.scale.y : kind === "cylinder" ? (p.height ?? 1) * o.scale.y : kind === "cone" ? (p.height ?? 1) * o.scale.y : kind === "torus" ? 2 * (p.radius ?? 0.5) * o.scale.y : kind === "plane" ? (p.height ?? 1) * o.scale.y : 1,
-            depth: kind === "box" ? (p.depth ?? 1) * o.scale.z : kind === "sphere" ? 2 * (p.radius ?? 0.5) * o.scale.z : kind === "cylinder" ? 2 * Math.max(p.radiusTop ?? p.radius ?? 0.5, p.radiusBottom ?? p.radius ?? 0.5) * o.scale.z : kind === "cone" ? 2 * (p.radius ?? 0.5) * o.scale.z : kind === "torus" ? 2 * (p.radius ?? 0.5) * o.scale.z : kind === "plane" ? 0 : 1,
+            width:
+                kind === "box"
+                    ? (p.width ?? 1) * o.scale.x
+                    : kind === "sphere"
+                    ? 2 * (p.radius ?? 0.5) * o.scale.x
+                    : kind === "cylinder"
+                    ? 2 *
+                      Math.max(
+                          p.radiusTop ?? p.radius ?? 0.5,
+                          p.radiusBottom ?? p.radius ?? 0.5
+                      ) *
+                      o.scale.x
+                    : kind === "cone"
+                    ? 2 * (p.radius ?? 0.5) * o.scale.x
+                    : kind === "torus"
+                    ? 2 * (p.radius ?? 0.5) * o.scale.x
+                    : kind === "plane"
+                    ? (p.width ?? 1) * o.scale.x
+                    : 1,
+            height:
+                kind === "box"
+                    ? (p.height ?? 1) * o.scale.y
+                    : kind === "sphere"
+                    ? 2 * (p.radius ?? 0.5) * o.scale.y
+                    : kind === "cylinder"
+                    ? (p.height ?? 1) * o.scale.y
+                    : kind === "cone"
+                    ? (p.height ?? 1) * o.scale.y
+                    : kind === "torus"
+                    ? 2 * (p.radius ?? 0.5) * o.scale.y
+                    : kind === "plane"
+                    ? (p.height ?? 1) * o.scale.y
+                    : 1,
+            depth:
+                kind === "box"
+                    ? (p.depth ?? 1) * o.scale.z
+                    : kind === "sphere"
+                    ? 2 * (p.radius ?? 0.5) * o.scale.z
+                    : kind === "cylinder"
+                    ? 2 *
+                      Math.max(
+                          p.radiusTop ?? p.radius ?? 0.5,
+                          p.radiusBottom ?? p.radius ?? 0.5
+                      ) *
+                      o.scale.z
+                    : kind === "cone"
+                    ? 2 * (p.radius ?? 0.5) * o.scale.z
+                    : kind === "torus"
+                    ? 2 * (p.radius ?? 0.5) * o.scale.z
+                    : kind === "plane"
+                    ? 0
+                    : 1,
         };
-        const dims = `dims=(${eff.width.toFixed(2)}×${eff.height.toFixed(2)}×${eff.depth.toFixed(2)})`;
-        return `${o.name} [${o.id}] kind=${kind} ${dims} pos=(${o.position.x.toFixed(2)},${o.position.y.toFixed(2)},${o.position.z.toFixed(2)}) rot=(${o.rotation.x.toFixed(2)},${o.rotation.y.toFixed(2)},${o.rotation.z.toFixed(2)}) scale=(${o.scale.x.toFixed(2)},${o.scale.y.toFixed(2)},${o.scale.z.toFixed(2)}) color=${o.material.color}`;
+        const dims = `dims=(${eff.width.toFixed(2)}×${eff.height.toFixed(
+            2
+        )}×${eff.depth.toFixed(2)})`;
+        return `${o.name} [${
+            o.id
+        }] kind=${kind} ${dims} pos=(${o.position.x.toFixed(
+            2
+        )},${o.position.y.toFixed(2)},${o.position.z.toFixed(
+            2
+        )}) rot=(${o.rotation.x.toFixed(2)},${o.rotation.y.toFixed(
+            2
+        )},${o.rotation.z.toFixed(2)}) scale=(${o.scale.x.toFixed(
+            2
+        )},${o.scale.y.toFixed(2)},${o.scale.z.toFixed(2)}) color=${
+            o.material.color
+        }`;
     }
 
     async function callLLM(userText: string, attached?: File | null) {
@@ -289,7 +381,12 @@ export function ChatPanel() {
             const r = await fetch(`${SERVER_URL}/api/chat`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user: userText, sceneSummary, focusContext, attachment: attachmentPayload }),
+                body: JSON.stringify({
+                    user: userText,
+                    sceneSummary,
+                    focusContext,
+                    attachment: attachmentPayload,
+                }),
             });
             const data = await r.json();
             // OpenAI-compatible: choices[0].message
@@ -316,7 +413,11 @@ export function ChatPanel() {
                 }
                 if (name === "generateModelRodin") {
                     try {
-                        const pre = new Set(((useEditor as any).getState?.().objects ?? []).map((o: any) => o.id));
+                        const pre = new Set(
+                            ((useEditor as any).getState?.().objects ?? []).map(
+                                (o: any) => o.id
+                            )
+                        );
                         const body = {
                             imageUrl: args.imageUrl,
                             prompt: args.prompt,
@@ -330,19 +431,35 @@ export function ChatPanel() {
                         });
                         const jd = await rr.json();
                         const glbUrl = jd?.glbUrl;
-                        if (!glbUrl) return { executed: false, reply: "Rodin failed" };
+                        if (!glbUrl)
+                            return { executed: false, reply: "Rodin failed" };
                         const resp = await fetch(glbUrl);
-                        if (!resp.ok) return { executed: false, reply: "Fetch GLB failed" };
+                        if (!resp.ok)
+                            return {
+                                executed: false,
+                                reply: "Fetch GLB failed",
+                            };
                         const blob = await resp.blob();
-                        const file = new File([blob], "rodin.glb", { type: blob.type || 'model/gltf-binary' });
+                        const file = new File([blob], "rodin.glb", {
+                            type: blob.type || "model/gltf-binary",
+                        });
                         const objs = await importObjectsFromGLTF(file);
                         if (addSceneObjects) addSceneObjects(objs);
-                        const postObjs = ((useEditor as any).getState?.().objects ?? []);
-                        const newIds = postObjs.filter((o: any) => !pre.has(o.id)).map((o: any) => o.id);
+                        const postObjs =
+                            (useEditor as any).getState?.().objects ?? [];
+                        const newIds = postObjs
+                            .filter((o: any) => !pre.has(o.id))
+                            .map((o: any) => o.id);
                         if (newIds.length) ensurePinned(newIds);
-                        return { executed: true, reply: `Imported ${objs.length} object(s)` };
+                        return {
+                            executed: true,
+                            reply: `Imported ${objs.length} object(s)`,
+                        };
                     } catch {
-                        return { executed: false, reply: "Rodin import failed" };
+                        return {
+                            executed: false,
+                            reply: "Rodin import failed",
+                        };
                     }
                 }
                 if (name === "selectObject") {
@@ -446,8 +563,10 @@ export function ChatPanel() {
                     const candidate = args.id ?? args.target ?? selectedId;
                     const id = resolveId(candidate) ?? null;
                     const newName = String(args.name || "").trim();
-                    if (!id || !newName) return { executed: false, reply: "Missing id or name" };
-                    const updateNameStore = (useEditor as any).getState?.().updateName;
+                    if (!id || !newName)
+                        return { executed: false, reply: "Missing id or name" };
+                    const updateNameStore = (useEditor as any).getState?.()
+                        .updateName;
                     if (updateNameStore) updateNameStore(id, newName);
                     return { executed: true, reply: `Renamed to ${newName}` };
                 }
@@ -500,7 +619,10 @@ export function ChatPanel() {
                     const kind = args.kind as GeometryKind;
                     const count = Math.max(1, Number(args.count || 1));
                     const params = args.params;
-                    const sx = Number(args.spacingX ?? (params?.width ?? params?.radius ?? 1.0) * 1.2);
+                    const sx = Number(
+                        args.spacingX ??
+                            (params?.width ?? params?.radius ?? 1.0) * 1.2
+                    );
                     const sy = Number(args.spacingY ?? 0);
                     const sz = Number(args.spacingZ ?? 0);
                     const startX = Number(args.startX ?? 0);
@@ -523,42 +645,80 @@ export function ChatPanel() {
                             created++;
                         }
                     }
-                    return { executed: true, reply: `Added ${created} ${kind}(s)` };
+                    return {
+                        executed: true,
+                        reply: `Added ${created} ${kind}(s)`,
+                    };
                 }
                 if (name === "updateTransformMany") {
-                    const items: any[] = Array.isArray(args.items) ? args.items : [];
+                    const items: any[] = Array.isArray(args.items)
+                        ? args.items
+                        : [];
                     let applied = 0;
                     for (const it of items) {
                         const t = String(it.id || it.target || "");
-                        const obj = objects.find(o => o.id === t || o.name === t);
+                        const obj = objects.find(
+                            (o) => o.id === t || o.name === t
+                        );
                         if (!obj) continue;
                         const isDelta = !!it.isDelta;
-                        const position = it.position ? {
-                            x: isDelta ? obj.position.x + (it.position.x ?? 0) : (it.position.x ?? obj.position.x),
-                            y: isDelta ? obj.position.y + (it.position.y ?? 0) : (it.position.y ?? obj.position.y),
-                            z: isDelta ? obj.position.z + (it.position.z ?? 0) : (it.position.z ?? obj.position.z),
-                        } : undefined;
-                        const rotation = it.rotation ? {
-                            x: isDelta ? obj.rotation.x + (it.rotation.x ?? 0) : (it.rotation.x ?? obj.rotation.x),
-                            y: isDelta ? obj.rotation.y + (it.rotation.y ?? 0) : (it.rotation.y ?? obj.rotation.y),
-                            z: isDelta ? obj.rotation.z + (it.rotation.z ?? 0) : (it.rotation.z ?? obj.rotation.z),
-                        } : undefined;
-                        const scale = it.scale ? {
-                            x: isDelta ? obj.scale.x * (it.scale.x ?? 1) : (it.scale.x ?? obj.scale.x),
-                            y: isDelta ? obj.scale.y * (it.scale.y ?? 1) : (it.scale.y ?? obj.scale.y),
-                            z: isDelta ? obj.scale.z * (it.scale.z ?? 1) : (it.scale.z ?? obj.scale.z),
-                        } : undefined;
+                        const position = it.position
+                            ? {
+                                  x: isDelta
+                                      ? obj.position.x + (it.position.x ?? 0)
+                                      : it.position.x ?? obj.position.x,
+                                  y: isDelta
+                                      ? obj.position.y + (it.position.y ?? 0)
+                                      : it.position.y ?? obj.position.y,
+                                  z: isDelta
+                                      ? obj.position.z + (it.position.z ?? 0)
+                                      : it.position.z ?? obj.position.z,
+                              }
+                            : undefined;
+                        const rotation = it.rotation
+                            ? {
+                                  x: isDelta
+                                      ? obj.rotation.x + (it.rotation.x ?? 0)
+                                      : it.rotation.x ?? obj.rotation.x,
+                                  y: isDelta
+                                      ? obj.rotation.y + (it.rotation.y ?? 0)
+                                      : it.rotation.y ?? obj.rotation.y,
+                                  z: isDelta
+                                      ? obj.rotation.z + (it.rotation.z ?? 0)
+                                      : it.rotation.z ?? obj.rotation.z,
+                              }
+                            : undefined;
+                        const scale = it.scale
+                            ? {
+                                  x: isDelta
+                                      ? obj.scale.x * (it.scale.x ?? 1)
+                                      : it.scale.x ?? obj.scale.x,
+                                  y: isDelta
+                                      ? obj.scale.y * (it.scale.y ?? 1)
+                                      : it.scale.y ?? obj.scale.y,
+                                  z: isDelta
+                                      ? obj.scale.z * (it.scale.z ?? 1)
+                                      : it.scale.z ?? obj.scale.z,
+                              }
+                            : undefined;
                         updateTransform(obj.id, { position, rotation, scale });
                         applied++;
                     }
-                    return { executed: applied > 0, reply: `Updated ${applied} object(s)` };
+                    return {
+                        executed: applied > 0,
+                        reply: `Updated ${applied} object(s)`,
+                    };
                 }
                 if (name === "updateMaterialMany") {
-                    const items: any[] = Array.isArray(args.items) ? args.items : [];
+                    const items: any[] = Array.isArray(args.items)
+                        ? args.items
+                        : [];
                     let applied = 0;
                     for (const it of items) {
                         const t = String(it.id || it.target || "");
-                        const obj = objects.find(o => o.id === t || o.name === t);
+                        const obj = objects.find(
+                            (o) => o.id === t || o.name === t
+                        );
                         if (!obj) continue;
                         updateMaterial(obj.id, {
                             color: it.color,
@@ -569,7 +729,10 @@ export function ChatPanel() {
                         });
                         applied++;
                     }
-                    return { executed: applied > 0, reply: `Material updated on ${applied} object(s)` };
+                    return {
+                        executed: applied > 0,
+                        reply: `Material updated on ${applied} object(s)`,
+                    };
                 }
             }
 
@@ -985,23 +1148,69 @@ export function ChatPanel() {
                     <Toggle onClick={() => setShowHistory((v) => !v)}>
                         {showHistory ? "Hide" : "Show"} History
                     </Toggle>
-          <Toggle onClick={() => {
-            // Hide via global store so layout unmounts the panel
-            try { (useEditor as any).setState((s: any) => ({ ...s, showChatPanel: false })); } catch {}
-          }}>✕</Toggle>
+                    <Toggle
+                        onClick={() => {
+                            // Hide via global store so layout unmounts the panel
+                            try {
+                                (useEditor as any).setState((s: any) => ({
+                                    ...s,
+                                    showChatPanel: false,
+                                }));
+                            } catch {}
+                        }}
+                    >
+                        ✕
+                    </Toggle>
                 </div>
             </Header>
-            <div style={{ padding: "6px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <div style={{ fontSize: 12, opacity: 0.85 }}>Context: {pinnedIds.length} pinned</div>
-                <SmallBtn onClick={pinSelected} disabled={!selectedId} title="Pin selected to chat context">Pin Selected</SmallBtn>
-                <SmallBtn onClick={clearPins} title="Clear pinned context">Clear</SmallBtn>
+            <div
+                style={{
+                    padding: "6px 10px",
+                    borderBottom: "1px solid rgba(255,255,255,0.06)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    flexWrap: "wrap",
+                }}
+            >
+                <div style={{ fontSize: 12, opacity: 0.85 }}>
+                    Context: {pinnedIds.length} pinned
+                </div>
+                <SmallBtn
+                    onClick={pinSelected}
+                    disabled={!selectedId}
+                    title="Pin selected to chat context"
+                >
+                    Pin Selected
+                </SmallBtn>
+                <SmallBtn onClick={clearPins} title="Clear pinned context">
+                    Clear
+                </SmallBtn>
                 {pinnedIds.slice(0, 3).map((id) => {
                     const o = objects.find((x) => x.id === id);
                     if (!o) return null;
                     return (
-                        <span key={id} style={{ fontSize: 11, background: "rgba(30,34,44,0.7)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, padding: "2px 6px" }}>
+                        <span
+                            key={id}
+                            style={{
+                                fontSize: 11,
+                                background: "rgba(30,34,44,0.7)",
+                                border: "1px solid rgba(255,255,255,0.08)",
+                                borderRadius: 6,
+                                padding: "2px 6px",
+                            }}
+                        >
                             {o.name}
-                            <button onClick={() => unpin(id)} style={{ marginLeft: 6, background: "transparent", color: "#aaa" }}>×</button>
+                            <button
+                                onClick={() => unpin(id)}
+                                style={{
+                                    marginLeft: 6,
+                                    background: "transparent",
+                                    color: "#aaa",
+                                }}
+                            >
+                                ×
+                            </button>
                         </span>
                     );
                 })}
@@ -1061,23 +1270,28 @@ export function ChatPanel() {
                 ))}
             </Messages>
             {attachment && (
-                <div style={{
-                    padding: "6px 10px",
-                    borderTop: "1px solid rgba(255, 255, 255, 0.06)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 8,
-                }}>
-                    <div style={{
-                        fontSize: 12,
-                        opacity: 0.85,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        maxWidth: "70%",
-                    }}>
-                        Attached: {attachment.name} ({Math.max(1, Math.round(attachment.size / 1024))} KB)
+                <div
+                    style={{
+                        padding: "6px 10px",
+                        borderTop: "1px solid rgba(255, 255, 255, 0.06)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 8,
+                    }}
+                >
+                    <div
+                        style={{
+                            fontSize: 12,
+                            opacity: 0.85,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            maxWidth: "70%",
+                        }}
+                    >
+                        Attached: {attachment.name} (
+                        {Math.max(1, Math.round(attachment.size / 1024))} KB)
                     </div>
                     <SmallBtn onClick={() => setAttachment(null)}>✕</SmallBtn>
                 </div>

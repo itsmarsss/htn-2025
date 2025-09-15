@@ -1,81 +1,93 @@
-import styled from "styled-components";
-import { useEditor } from "../store/editor";
-import {
-    BoxIcon,
-    SphereIcon,
-    CylinderIcon,
-    ConeIcon,
-    TorusIcon,
-    PlaneIcon,
-} from "./ShapeIcons";
+import styled from 'styled-components'
+import { useEditor } from '../store/editor'
 
 const Rail = styled.div`
-    position: absolute;
-    top: 56px;
-    bottom: 12px;
-    left: 12px;
-    width: 52px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-`;
+  position: absolute;
+  top: 56px;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+`
 
 const Btn = styled.button`
-    width: 52px;
-    height: 40px;
-    background: rgba(18, 20, 26, 0.9);
-    color: #e6e9ef;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
+  background: rgba(0, 0, 0, 0.8);
+  color: #e6e9ef;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 6px 10px;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+  
+  &:hover {
+    background: rgba(30, 30, 30, 0.8);
+  }
+  
+  &:active {
+    background: rgba(50, 50, 50, 0.8);
+  }
+`
 
-    &:hover {
-        background: rgba(18, 20, 26, 1);
-        border-color: rgba(255, 255, 255, 0.15);
-        transform: translateY(-1px);
-    }
+const DuplicateBtn = styled.button`
+  background: rgba(0, 100, 0, 0.8);
+  color: #e6e9ef;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 6px 10px;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+  
+  &:hover {
+    background: rgba(0, 120, 0, 0.8);
+  }
+  
+  &:active {
+    background: rgba(0, 140, 0, 0.8);
+  }
+`
 
-    &:active {
-        transform: translateY(0);
-    }
-`;
+const DeleteBtn = styled.button`
+  background: rgba(100, 0, 0, 0.8);
+  color: #e6e9ef;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 6px 10px;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+  
+  &:hover {
+    background: rgba(120, 0, 0, 0.8);
+  }
+  
+  &:active {
+    background: rgba(140, 0, 0, 0.8);
+  }
+`
+
+const Spacer = styled.div`
+  height: 16px;
+`
 
 export function Toolbar() {
-    const add = useEditor((s) => s.addObject);
-    const editorMode = useEditor((s) => s.editorMode);
+  const add = useEditor(s => s.addObject)
+  const del = useEditor(s => s.deleteSelected)
+  const dup = useEditor(s => s.duplicateSelected)
 
-    return (
-        <Rail>
-            {/* Shape buttons - only show in object and edit modes */}
-            {editorMode !== "render" && (
-                <>
-                    <Btn onClick={() => add("box")} title="Add Box">
-                        <BoxIcon size={20} />
-                    </Btn>
-                    <Btn onClick={() => add("sphere")} title="Add Sphere">
-                        <SphereIcon size={20} />
-                    </Btn>
-                    <Btn onClick={() => add("cylinder")} title="Add Cylinder">
-                        <CylinderIcon size={20} />
-                    </Btn>
-                    <Btn onClick={() => add("cone")} title="Add Cone">
-                        <ConeIcon size={20} />
-                    </Btn>
-                    <Btn onClick={() => add("torus")} title="Add Torus">
-                        <TorusIcon size={20} />
-                    </Btn>
-                    <Btn onClick={() => add("plane")} title="Add Plane">
-                        <PlaneIcon size={20} />
-                    </Btn>
-                </>
-            )}
-
-            {/* Lighting buttons removed for render mode */}
-        </Rail>
-    );
+  return (
+    <Rail>
+      <Btn onClick={() => add('box')}>Box</Btn>
+      <Btn onClick={() => add('sphere')}>Sphere</Btn>
+      <Btn onClick={() => add('cylinder')}>Cylinder</Btn>
+      <Btn onClick={() => add('cone')}>Cone</Btn>
+      <Btn onClick={() => add('torus')}>Torus</Btn>
+      <Btn onClick={() => add('plane')}>Plane</Btn>
+      <Spacer />
+      <DuplicateBtn onClick={dup}>Duplicate</DuplicateBtn>
+      <DeleteBtn onClick={del}>Delete</DeleteBtn>
+    </Rail>
+  )
 }
 
-export default Toolbar;
+export default Toolbar
