@@ -1,5 +1,6 @@
-import datetime
 import eventlet
+eventlet.monkey_patch()
+import datetime
 import orjson
 import cv2
 import mediapipe as mp
@@ -12,7 +13,6 @@ from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 from scipy.spatial.distance import cdist
 
-eventlet.monkey_patch()
 
 app = Flask(__name__)
 CORS(app)
