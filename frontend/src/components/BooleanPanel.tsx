@@ -25,20 +25,11 @@ const Select = styled.select`
 `;
 
 const Btn = styled.button`
-    background: rgba(0, 0, 0, 0.8);
+    background: #12141a;
     color: #e6e9ef;
     border: 1px solid rgba(255, 255, 255, 0.08);
     padding: 6px 10px;
     border-radius: 8px;
-    transition: background-color 0.2s ease;
-
-    &:hover {
-        background: rgba(30, 30, 30, 0.8);
-    }
-
-    &:active {
-        background: rgba(50, 50, 50, 0.8);
-    }
 `;
 
 export function BooleanPanel() {
