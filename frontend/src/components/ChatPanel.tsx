@@ -3,6 +3,8 @@ import { useMemo, useRef, useState } from "react";
 import { useEditor } from "../store/editor";
 import type { GeometryKind, SceneObject } from "../types";
 import { importObjectsFromGLTF } from "../utils/io";
+import { runAgent } from "../agent/agent";
+import { useAgentTimeline } from "../store/agentTimeline";
 
 const SERVER_URL =
     (import.meta as any).env?.VITE_SERVER_URL ?? "http://localhost:8787";
@@ -204,6 +206,11 @@ export function ChatPanel() {
     );
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const setDryRun = useAgentTimeline((s) => s.setDryRun);
+    const dryRun = useAgentTimeline((s) => s.dryRun);
+    const setSteps = useAgentTimeline((s) => s.setSteps);
+    const setSnapshotUi = useAgentTimeline((s) => s.setSnapshot);
 
     function push(role: ChatMsg["role"], text: string) {
         setMessages((prev) => [...prev, { role, text }]);
@@ -669,363 +676,31 @@ export function ChatPanel() {
         return undefined;
     }
 
+    async function handleAgent(text: string) {
+        // Always call perceive first via runAgent
+        console.log("[Chat] handleAgent text=", text, "dryRun=", dryRun);
+        const result = await runAgent(text, !dryRun);
+        console.log("[Chat] agent result:", result);
+        setSteps(result.transcript);
+        setSnapshotUi(result.snapshot);
+        const summary = `Agent ${dryRun ? "planned" : "executed"} ${result.transcript.length} step(s).`;
+        return summary;
+    }
+
     function handleCommand(raw: string, attachedOverride?: File | null) {
         const text = raw.trim();
         if (!text) return;
+        console.log("[Chat] handleCommand raw=", raw);
         push("user", text);
-        const attachedForThis = attachedOverride ?? attachment;
-
-        if (usingLLM) {
-            callLLM(text, attachedForThis).then(({ executed, reply }) => {
-                push("system", reply);
-                if (executed) checkpoint(text, reply);
-                else fallbackParse(text, attachedForThis);
-            });
-            return;
-        }
-
-        fallbackParse(text, attachedForThis);
-    }
-
-    function fallbackParse(text: string, attachedForThis?: File | null) {
-        const lc = text.toLowerCase();
-        let sys = "";
-
-        // rodin model generation
-        const rodinMatch = lc.match(/^rodin\b(.*)$/);
-        if (rodinMatch) {
-            const rest = (rodinMatch[1] || "").trim();
-            // support either "rodin prompt: ..." or "rodin ..."
-            const promptRaw = rest.replace(/^prompt\s*:\s*/i, "").trim();
-            callRodinDirect(promptRaw || undefined, attachedForThis).then((reply) => {
-                push("system", reply);
-                checkpoint(text, reply);
-            });
-            return;
-        }
-
-        // mode
-        if (/^mode\s+(translate|rotate|scale)/i.test(lc)) {
-            const m = lc.match(/^mode\s+(translate|rotate|scale)/i);
-            if (m) {
-                setMode(m[1] as any);
-                sys = `Mode set to ${m[1]}`;
-                push("system", sys);
-                checkpoint(text, sys);
-                return;
-            }
-        }
-
-        // snapping
-        if (/^(enable|disable)\s+snapping/.test(lc)) {
-            toggleSnap(lc.startsWith("enable"));
-            sys = `Snapping ${
-                lc.startsWith("enable") ? "enabled" : "disabled"
-            }`;
-            push("system", sys);
-            checkpoint(text, sys);
-            return;
-        }
-        if (/^snap\s+/.test(lc)) {
-            const ts = lc.match(/translate\s+(-?\d*\.?\d+)/);
-            const rs = lc.match(/rotate\s+(-?\d*\.?\d+)/);
-            const ss = lc.match(/scale\s+(-?\d*\.?\d+)/);
-            if (ts) setSnap({ translateSnap: parseFloat(ts[1]) });
-            if (rs)
-                setSnap({ rotateSnap: (parseFloat(rs[1]) * Math.PI) / 180 });
-            if (ss) setSnap({ scaleSnap: parseFloat(ss[1]) });
-            sys = "Snap updated";
-            push("system", sys);
-            checkpoint(text, sys);
-            return;
-        }
-
-        // undo/redo/clear
-        if (lc === "undo") {
-            undo();
-            sys = "Undid last action";
-            push("system", sys);
-            checkpoint(text, sys);
-            return;
-        }
-        if (lc === "redo") {
-            redo();
-            sys = "Redid last action";
-            push("system", sys);
-            checkpoint(text, sys);
-            return;
-        }
-        if (lc === "clear" || lc === "reset scene") {
-            window.location.reload();
-            return;
-        }
-
-        // add object
-        const addMatch = lc.match(
-            /^add\s+(box|sphere|cylinder|cone|torus|plane)(.*)$/
-        );
-        if (addMatch) {
-            const kind = addMatch[1] as GeometryKind;
-            const params = parseAddParams(kind, addMatch[2] ?? "");
-            addObject(kind, params);
-            try {
-                const st = (useEditor as any).getState?.() || {};
-                if (st.selectedId) ensurePinned(st.selectedId);
-            } catch {}
-            sys = `Added ${kind}${params ? " with params" : ""}`;
-            push("system", sys);
-            checkpoint(text, sys);
-            return;
-        }
-
-        // delete / duplicate
-        if (/^(delete|remove|del)$/.test(lc)) {
-            if (!selected) {
-                sys = "Nothing selected";
-                push("system", sys);
-                return;
-            }
-            deleteSelected();
-            sys = "Deleted selected object";
-            push("system", sys);
-            checkpoint(text, sys);
-            return;
-        }
-        if (/^(duplicate|copy|dup)$/.test(lc)) {
-            if (!selected) {
-                sys = "Nothing selected";
-                push("system", sys);
-                return;
-            }
-            duplicateSelected();
-            try {
-                const st = (useEditor as any).getState?.() || {};
-                if (st.selectedId) ensurePinned(st.selectedId);
-            } catch {}
-            sys = "Duplicated selected object";
-            push("system", sys);
-            checkpoint(text, sys);
-            return;
-        }
-
-        // select by name
-        const selByName = lc.match(/^select\s+(.+)$/);
-        if (selByName) {
-            const name = selByName[1].trim();
-            const obj = findByNameOrId(name);
-            if (obj) {
-                select(obj.id);
-                sys = `Selected ${obj.name}`;
-                push("system", sys);
-                checkpoint(text, sys);
-            } else {
-                sys = `Could not find object "${name}"`;
-                push("system", sys);
-            }
-            return;
-        }
-
-        // color / material
-        const colorMatch = lc.match(/(?:color|colour)\s+([^\s]+)/);
-        if (colorMatch && selected) {
-            const rawColor = colorMatch[1];
-            const hex = COLOR_NAMES[rawColor] ?? rawColor;
-            updateMaterial(selected.id, { color: hex });
-            sys = `Set color to ${hex}`;
-            push("system", sys);
-            checkpoint(text, sys);
-            return;
-        }
-
-        const opacityMatch = lc.match(/opacity\s+(-?\d*\.?\d+)/);
-        if (opacityMatch && selected) {
-            const v = parseNumber(opacityMatch[1], 1);
-            updateMaterial(selected.id, { opacity: v, transparent: v < 1 });
-            sys = `Set opacity to ${v}`;
-            push("system", sys);
-            checkpoint(text, sys);
-            return;
-        }
-
-        const metalMatch = lc.match(/metal(ness)?\s+(-?\d*\.?\d+)/);
-        if (metalMatch && selected) {
-            const v = parseNumber(metalMatch[2], 0.1);
-            updateMaterial(selected.id, { metalness: v });
-            sys = `Set metalness to ${v}`;
-            push("system", sys);
-            checkpoint(text, sys);
-            return;
-        }
-
-        const roughMatch = lc.match(/rough(ness)?\s+(-?\d*\.?\d+)/);
-        if (roughMatch && selected) {
-            const v = parseNumber(roughMatch[2], 0.8);
-            updateMaterial(selected.id, { roughness: v });
-            sys = `Set roughness to ${v}`;
-            push("system", sys);
-            checkpoint(text, sys);
-            return;
-        }
-
-        // move / translate (relative)
-        const moveMatch = lc.match(/^(move|translate)\b(.*)$/);
-        if (moveMatch && selected) {
-            const rest = moveMatch[2];
-            const dx = parseNumber(rest.match(/x\s+(-?\d*\.?\d+)/)?.[1], 0);
-            const dy = parseNumber(rest.match(/y\s+(-?\d*\.?\d+)/)?.[1], 0);
-            const dz = parseNumber(rest.match(/z\s+(-?\d*\.?\d+)/)?.[1], 0);
-            updateTransform(selected.id, {
-                position: {
-                    x: selected.position.x + dx,
-                    y: selected.position.y + dy,
-                    z: selected.position.z + dz,
-                },
-            });
-            sys = `Moved by (${dx}, ${dy}, ${dz})`;
-            push("system", sys);
-            checkpoint(text, sys);
-            return;
-        }
-
-        // set position absolute: position x 1 y 2 z 3
-        const posMatch = lc.match(/^pos(ition)?\b(.*)$/);
-        if (posMatch && selected) {
-            const rest = posMatch[2];
-            const x = parseNumber(
-                rest.match(/x\s+(-?\d*\.?\d+)/)?.[1],
-                selected.position.x
-            );
-            const y = parseNumber(
-                rest.match(/y\s+(-?\d*\.?\d+)/)?.[1],
-                selected.position.y
-            );
-            const z = parseNumber(
-                rest.match(/z\s+(-?\d*\.?\d+)/)?.[1],
-                selected.position.z
-            );
-            updateTransform(selected.id, { position: { x, y, z } });
-            sys = `Position set to (${x}, ${y}, ${z})`;
-            push("system", sys);
-            checkpoint(text, sys);
-            return;
-        }
-
-        // rotate
-        const rotMatch = lc.match(/^rot(ate)?\b(.*)$/);
-        if (rotMatch && selected) {
-            const rest = rotMatch[2];
-            const hasDeg = /deg/.test(rest);
-            const rxRaw = rest.match(/x\s+(-?\d*\.?\d+)/)?.[1];
-            const ryRaw = rest.match(/y\s+(-?\d*\.?\d+)/)?.[1];
-            const rzRaw = rest.match(/z\s+(-?\d*\.?\d+)/)?.[1];
-            const rx = rxRaw
-                ? hasDeg
-                    ? toRadians(parseFloat(rxRaw))
-                    : parseFloat(rxRaw)
-                : 0;
-            const ry = ryRaw
-                ? hasDeg
-                    ? toRadians(parseFloat(ryRaw))
-                    : parseFloat(ryRaw)
-                : 0;
-            const rz = rzRaw
-                ? hasDeg
-                    ? toRadians(parseFloat(rzRaw))
-                    : parseFloat(rzRaw)
-                : 0;
-            updateTransform(selected.id, {
-                rotation: {
-                    x: selected.rotation.x + rx,
-                    y: selected.rotation.y + ry,
-                    z: selected.rotation.z + rz,
-                },
-            });
-            sys = `Rotated by (${rx.toFixed(3)}, ${ry.toFixed(3)}, ${rz.toFixed(
-                3
-            )}) rad`;
-            push("system", sys);
-            checkpoint(text, sys);
-            return;
-        }
-
-        // scale
-        const scaleMatch = lc.match(/^scale\b(.*)$/);
-        if (scaleMatch && selected) {
-            const rest = scaleMatch[1];
-            const sxRaw = rest.match(/x\s+(-?\d*\.?\d+)/)?.[1];
-            const syRaw = rest.match(/y\s+(-?\d*\.?\d+)/)?.[1];
-            const szRaw = rest.match(/z\s+(-?\d*\.?\d+)/)?.[1];
-            const uniRaw = rest.match(/\b(-?\d*\.?\d+)\b/)?.[1];
-            const sx = sxRaw
-                ? parseFloat(sxRaw)
-                : uniRaw
-                ? parseFloat(uniRaw)
-                : 1;
-            const sy = syRaw
-                ? parseFloat(syRaw)
-                : uniRaw
-                ? parseFloat(uniRaw)
-                : 1;
-            const sz = szRaw
-                ? parseFloat(szRaw)
-                : uniRaw
-                ? parseFloat(uniRaw)
-                : 1;
-            updateTransform(selected.id, {
-                scale: {
-                    x: selected.scale.x * sx,
-                    y: selected.scale.y * sy,
-                    z: selected.scale.z * sz,
-                },
-            });
-            sys = `Scaled by (${sx}, ${sy}, ${sz})`;
-            push("system", sys);
-            checkpoint(text, sys);
-            return;
-        }
-
-        // change geometry kind
-        const geomMatch = lc.match(
-            /^set\s+(box|sphere|cylinder|cone|torus|plane)\b(.*)$/
-        );
-        if (geomMatch && selected) {
-            const kind = geomMatch[1] as GeometryKind;
-            const params = parseAddParams(kind, geomMatch[2] ?? "");
-            updateGeometry(selected.id, kind, params);
-            sys = `Changed geometry to ${kind}`;
-            push("system", sys);
-            checkpoint(text, sys);
-            return;
-        }
-
-        // boolean ops: union a b
-        const boolMatch = lc.match(
-            /^(union|subtract|intersect)\s+([^\s]+)\s+([^\s]+)$/
-        );
-        if (boolMatch) {
-            const op = boolMatch[1] as "union" | "subtract" | "intersect";
-            const a = findByNameOrId(boolMatch[2]);
-            const b = findByNameOrId(boolMatch[3]);
-            if (!a || !b) {
-                sys = "Could not find both operands";
-                push("system", sys);
-                return;
-            }
-            booleanOp(op, a.id, b.id);
-            try {
-                const st = (useEditor as any).getState?.() || {};
-                if (st.selectedId) ensurePinned(st.selectedId);
-            } catch {}
-            sys = `Boolean ${op} created from ${a.name} and ${b.name}`;
-            push("system", sys);
-            checkpoint(text, sys);
-            return;
-        }
+        handleAgent(text).then((reply) => {
+            push("system", reply);
+        });
     }
 
     function onSubmit(e: React.FormEvent) {
         e.preventDefault();
         const t = input;
+        console.log("[Chat] onSubmit input=", t);
         const attachedForThis = attachment;
         setInput("");
         handleCommand(t, attachedForThis);
@@ -1042,6 +717,9 @@ export function ChatPanel() {
                     </Toggle>
                     <Toggle onClick={() => setShowHistory((v) => !v)}>
                         {showHistory ? "Hide" : "Show"} History
+                    </Toggle>
+                    <Toggle onClick={() => setDryRun(!dryRun)} title="Toggle dry-run / apply">
+                        {dryRun ? "Dry-run" : "Apply"}
                     </Toggle>
           <Toggle onClick={() => {
             // Hide via global store so layout unmounts the panel
@@ -1140,6 +818,10 @@ export function ChatPanel() {
                     <SmallBtn onClick={() => setAttachment(null)}>✕</SmallBtn>
                 </div>
             )}
+            <div style={{ padding: "6px 10px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <SnapshotCounts />
+                <ExportButton />
+            </div>
             <InputRow onSubmit={onSubmit}>
                 <input
                     ref={fileInputRef}
@@ -1170,6 +852,30 @@ export function ChatPanel() {
                 <SendBtn type="submit">Send</SendBtn>
             </InputRow>
         </Panel>
+    );
+}
+
+function SnapshotCounts() {
+    const snap = useAgentTimeline((s) => s.snapshot);
+    const meshes = snap?.counts.meshes ?? 0;
+    const lights = snap?.counts.lights ?? 0;
+    const cameras = snap?.counts.cameras ?? 0;
+    return (
+        <div style={{ fontSize: 12, opacity: 0.85 }}>
+            {`Meshes: ${meshes} · Lights: ${lights} · Cameras: ${cameras}`}
+        </div>
+    );
+}
+
+function ExportButton() {
+    const setSteps = useAgentTimeline((s) => s.setSteps);
+    const setSnapshot = useAgentTimeline((s) => s.setSnapshot);
+    return (
+        <SmallBtn onClick={async () => {
+            const res = await runAgent("Export the scene to GLB.", true);
+            setSteps(res.transcript);
+            setSnapshot(res.snapshot);
+        }}>Download GLB</SmallBtn>
     );
 }
 
