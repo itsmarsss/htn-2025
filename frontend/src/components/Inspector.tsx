@@ -4,14 +4,14 @@ import { useEditor } from "../store/editor";
 import { DuplicateIcon, DeleteIcon } from "./ShapeIcons";
 // import type { SceneObject, SceneLight } from "../types";
 
-const Header = styled.div<{ isDragging?: boolean }>`
+const Header = styled.div<{ $isDragging?: boolean }>`
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 12px;
     padding-bottom: 8px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    cursor: ${(props) => (props.isDragging ? "grabbing" : "grab")};
+    cursor: ${(props) => (props.$isDragging ? "grabbing" : "grab")};
     user-select: none;
 `;
 
@@ -31,29 +31,29 @@ const CloseButton = styled.button`
 `;
 
 const InspectorContainer = styled.div<{
-    visible: boolean;
-    top: number;
-    left: number;
-    height: number;
-    isDragging?: boolean;
+    $visible: boolean;
+    $top: number;
+    $left: number;
+    $height: number;
+    $isDragging?: boolean;
 }>`
     position: absolute;
-    top: ${(props) => props.top}px;
-    left: ${(props) => props.left}px;
+    top: ${(props) => props.$top}px;
+    left: ${(props) => props.$left}px;
     width: 280px;
-    height: ${(props) => props.height}px;
+    height: ${(props) => props.$height}px;
     background: rgba(18, 20, 26, 0.9);
     color: #e6e9ef;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
     padding: 12px;
     overflow: auto;
-    opacity: ${(props) => (props.visible ? 1 : 0)};
-    visibility: ${(props) => (props.visible ? "visible" : "hidden")};
+    opacity: ${(props) => (props.$visible ? 1 : 0)};
+    visibility: ${(props) => (props.$visible ? "visible" : "hidden")};
     transform: ${(props) =>
-        props.visible ? "translateX(0)" : "translateX(20px)"};
-    transition: ${(props) => (props.isDragging ? "none" : "all 0.2s ease")};
-    cursor: ${(props) => (props.isDragging ? "grabbing" : "default")};
+        props.$visible ? "translateX(0)" : "translateX(20px)"};
+    transition: ${(props) => (props.$isDragging ? "none" : "all 0.2s ease")};
+    cursor: ${(props) => (props.$isDragging ? "grabbing" : "default")};
     user-select: none;
     z-index: 1000;
 
@@ -302,9 +302,12 @@ export function Inspector() {
     // Drag handlers
     const handleDragStart = useCallback(
         (e: React.MouseEvent) => {
+            const target = e.target as HTMLElement;
+            // Ignore drags starting from interactive controls
+            if (target.closest("input,select,textarea,button,[contenteditable='true'],[data-no-drag]")) return;
             if (
-                e.target === e.currentTarget ||
-                (e.target as HTMLElement).closest("[data-drag-handle]")
+                target === e.currentTarget ||
+                target.closest("[data-drag-handle],[data-drag-area]")
             ) {
                 setIsDragging(true);
                 setDragStart({
@@ -404,10 +407,10 @@ export function Inspector() {
     if (!isVisible) {
         return (
             <InspectorContainer
-                visible={false}
-                top={position.top}
-                left={position.left}
-                height={position.height}
+                $visible={false}
+                $top={position.top}
+                $left={position.left}
+                $height={position.height}
             />
         );
     }
@@ -418,15 +421,17 @@ export function Inspector() {
     return (
         <InspectorContainer
             ref={containerRef}
-            visible={isVisible}
-            top={position.top}
-            left={position.left}
-            height={position.height}
-            isDragging={isDragging}
+            $visible={isVisible}
+            $top={position.top}
+            $left={position.left}
+            $height={position.height}
+            $isDragging={isDragging}
+            data-drag-area
+            onMouseDown={handleDragStart}
         >
             <Header
                 data-drag-handle
-                isDragging={isDragging}
+                $isDragging={isDragging}
                 onMouseDown={handleDragStart}
             >
                 <Title>Inspector</Title>
