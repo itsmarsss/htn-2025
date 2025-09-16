@@ -61,6 +61,7 @@ export function Topbar() {
         const state = {
             objects,
             selectedId: useEditor.getState().selectedId,
+            lights: useEditor.getState().lights,
             mode,
             editorMode,
             snap,

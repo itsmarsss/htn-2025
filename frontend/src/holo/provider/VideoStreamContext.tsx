@@ -10,7 +10,7 @@ import React, {
 import type { StreamStatus } from "../types/streamstatus";
 
 interface VideoStreamContextType {
-    videoRef: React.RefObject<HTMLVideoElement>;
+    videoRef: React.RefObject<HTMLVideoElement | null>;
     getAvailableCameras: () => Promise<MediaDeviceInfo[]>;
     captureFrame: () => Promise<ArrayBuffer | null>;
     setActiveCamera: (cameraId: string) => void;

@@ -283,7 +283,7 @@ export function Inspector() {
     const updateName = useEditor((s) => s.updateName);
 
     const obj = objects.find((o) => o.id === selectedId);
-    const light = lights.find((l) => l.id === selectedId);
+    const light = lights?.find((l) => l.id === selectedId);
     const isVisible = showInspector; // Show inspector based on button toggle
 
     // State for dragging and resizing
@@ -304,7 +304,12 @@ export function Inspector() {
         (e: React.MouseEvent) => {
             const target = e.target as HTMLElement;
             // Ignore drags starting from interactive controls
-            if (target.closest("input,select,textarea,button,[contenteditable='true'],[data-no-drag]")) return;
+            if (
+                target.closest(
+                    "input,select,textarea,button,[contenteditable='true'],[data-no-drag]"
+                )
+            )
+                return;
             if (
                 target === e.currentTarget ||
                 target.closest("[data-drag-handle],[data-drag-area]")
