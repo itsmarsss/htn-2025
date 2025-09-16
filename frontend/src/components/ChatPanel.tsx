@@ -692,6 +692,21 @@ export function ChatPanel() {
         if (!text) return;
         console.log("[Chat] handleCommand raw=", raw);
         push("user", text);
+        const attachedForThis = attachedOverride ?? attachment;
+
+        if (usingLLM) {
+            callLLM(text, attachedForThis).then(({ executed, reply }) => {
+                push("system", reply);
+                if (executed) {
+                    checkpoint(text, reply);
+                } else {
+                    // Fallback to deterministic agent if no tool call was executed
+                    handleAgent(text).then((agentReply) => push("system", agentReply));
+                }
+            });
+            return;
+        }
+
         handleAgent(text).then((reply) => {
             push("system", reply);
         });
