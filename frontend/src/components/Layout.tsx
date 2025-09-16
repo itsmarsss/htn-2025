@@ -45,6 +45,7 @@ export function Layout() {
     const showChat = useEditor((s) => s.showChatPanel);
     const editorMode = useEditor((s) => s.editorMode);
     const steps = useAgentTimeline((s) => s.steps);
+    const showTimeline = useAgentTimeline((s) => s.showTimeline);
     return (
         <VideoStreamProvider>
             <Root>
@@ -55,9 +56,9 @@ export function Layout() {
                 <Toolbar />
                 <Inspector />
                 <BooleanPanel />
-                <AgentTimeline steps={steps} />
+                {showTimeline ? <AgentTimeline steps={steps} /> : null}
                 {showChat ? <ChatPanel /> : null}
-                {/* <VideoStream /> */}
+                <VideoStream />
             </Root>
         </VideoStreamProvider>
     );

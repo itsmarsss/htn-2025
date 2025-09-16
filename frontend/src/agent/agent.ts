@@ -105,10 +105,37 @@ export function planFromPrompt(prompt: string, snapshot: SceneSnapshot): AgentPl
     // generic: move/translate
     const move = lc.match(/^(move|translate)\b(.*)$/);
     if (move) {
-        const rest = move[2] || "";
-        const dx = parseFloat(rest.match(/x\s+(-?\d*\.?\d+)/)?.[1] || "0");
-        const dy = parseFloat(rest.match(/y\s+(-?\d*\.?\d+)/)?.[1] || "0");
-        const dz = parseFloat(rest.match(/z\s+(-?\d*\.?\d+)/)?.[1] || "0");
+        let rest = move[2] || "";
+        // Try to resolve a named target from the snapshot
+        const names = (snapshot.entities || []).map((e) => e.name.toLowerCase());
+        const nameHit = names.find((n) => n && rest.includes(n));
+        if (nameHit) {
+            steps.push({ name: "select", args: { query: { nameContains: nameHit } } });
+            rest = rest.replace(nameHit, "");
+        }
+
+        // Words: left/right/up/down/forward/back (+ optional distance)
+        const amtWord = (w: string) => {
+            const m = rest.match(new RegExp(`${w}\\s+(-?\\d*\\.?\\d+)`));
+            return m ? parseFloat(m[1]) : 1;
+        };
+        let dx = 0, dy = 0, dz = 0;
+        if (/(^|\s)left(\s|$)/.test(rest)) dx -= amtWord("left");
+        if (/(^|\s)right(\s|$)/.test(rest)) dx += amtWord("right");
+        if (/(^|\s)up(\s|$)/.test(rest)) dy += amtWord("up");
+        if (/(^|\s)down(\s|$)/.test(rest)) dy -= amtWord("down");
+        // Adjust semantics: forward => +Z, back => -Z for this editor's convention
+        if (/(^|\s)forward(\s|$)/.test(rest)) dz += amtWord("forward");
+        if (/(^|\s)back(ward|wards)?(\s|$)/.test(rest)) dz -= amtWord("back");
+
+        // Also allow explicit axis numbers to override/add
+        const dxExplicit = rest.match(/x\s+(-?\d*\.?\d+)/);
+        const dyExplicit = rest.match(/y\s+(-?\d*\.?\d+)/);
+        const dzExplicit = rest.match(/z\s+(-?\d*\.?\d+)/);
+        if (dxExplicit) dx = parseFloat(dxExplicit[1]);
+        if (dyExplicit) dy = parseFloat(dyExplicit[1]);
+        if (dzExplicit) dz = parseFloat(dzExplicit[1]);
+
         steps.push({ name: "transform", args: { id: "", translate: [dx, dy, dz] } });
         return { steps };
     }

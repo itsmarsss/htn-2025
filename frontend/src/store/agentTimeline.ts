@@ -10,6 +10,9 @@ interface AgentUiState {
     setSnapshot: (s: SceneSnapshot | null) => void;
     lastExportName: string | null;
     setLastExportName: (n: string | null) => void;
+    showTimeline: boolean;
+    setShowTimeline: (v: boolean) => void;
+    toggleTimeline: () => void;
 }
 
 export const useAgentTimeline = create<AgentUiState>()((set) => ({
@@ -21,4 +24,7 @@ export const useAgentTimeline = create<AgentUiState>()((set) => ({
     setSnapshot: (snapshot) => set((s) => ({ ...s, snapshot })),
     lastExportName: null,
     setLastExportName: (n) => set((s) => ({ ...s, lastExportName: n })),
+    showTimeline: true,
+    setShowTimeline: (v) => set((s) => ({ ...s, showTimeline: v })),
+    toggleTimeline: () => set((s) => ({ ...s, showTimeline: !s.showTimeline })),
 })); 

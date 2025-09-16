@@ -1,5 +1,6 @@
 import styled from "styled-components";
 import type { StepResult } from "../agent/types";
+import { useAgentTimeline } from "../store/agentTimeline";
 
 const Rail = styled.div`
     position: absolute;
@@ -21,6 +22,18 @@ const Header = styled.div`
     padding: 8px 12px;
     font-weight: 600;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+`;
+
+const CloseBtn = styled.button`
+    background: #12141a;
+    color: #e6e9ef;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 12px;
 `;
 
 const Steps = styled.div`
@@ -51,9 +64,13 @@ const Badge = styled.span`
 `;
 
 export function AgentTimeline({ steps }: { steps: StepResult[] }) {
+    const setShow = useAgentTimeline((s) => s.setShowTimeline);
     return (
         <Rail>
-            <Header>Agent Timeline</Header>
+            <Header>
+                <div>Agent Timeline</div>
+                <CloseBtn onClick={() => setShow(false)}>✕</CloseBtn>
+            </Header>
             <Steps>
                 {steps.length === 0 ? (
                     <div style={{ opacity: 0.6, fontSize: 12 }}>No steps yet</div>
