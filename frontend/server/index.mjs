@@ -17,7 +17,10 @@ app.use((req, res, next) => {
   next()
 })
 
-fal.config({ credentials: process.env.FAL_KEY })
+const rawFalKey = (process.env.FAL_KEY || process.env.VITE_FAL_KEY || process.env.FAL_API_KEY || '').trim()
+// Normalize common mistakes: leading 'Bearer ' and wrapping quotes
+const resolvedFalKey = rawFalKey.replace(/^Bearer\s+/i, '').replace(/^"|"$/g, '').replace(/^'|'$/g, '')
+fal.config({ credentials: resolvedFalKey })
 
 function getLlms() {
   const martianKey = process.env.MARTIAN_API_KEY || process.env.VITE_MARTIAN_API_KEY
@@ -62,7 +65,8 @@ Only produce natural language when no tool call is appropriate.`
 
 app.get('/api/health', (req, res) => {
   const llm = getLlms()
-  res.json({ ok: !!llm, provider: llm?.provider ?? null, baseUrl: llm?.baseUrl ?? null, model: llm?.model ?? null, hasKey: !!llm?.apiKey, falConfigured: !!process.env.FAL_KEY })
+  const falConfigured = !!resolvedFalKey
+  res.json({ ok: !!llm, provider: llm?.provider ?? null, baseUrl: llm?.baseUrl ?? null, model: llm?.model ?? null, hasKey: !!llm?.apiKey, falConfigured })
 })
 
 app.post('/api/rodin', async (req, res) => {
@@ -82,7 +86,14 @@ app.post('/api/rodin', async (req, res) => {
     if (!glbUrl) return res.status(502).json({ error: 'No model URL from Rodin', details: result })
     res.json({ glbUrl })
   } catch (e) {
-    res.status(500).json({ error: 'Rodin call failed', details: String(e) })
+    const err = e || {}
+    console.error('[Rodin] Error', err)
+    res.status(500).json({
+      error: 'Rodin call failed',
+      details: String(err?.message || err),
+      status: err?.status || err?.code || null,
+      name: err?.name || null,
+    })
   }
 })
 
@@ -129,7 +140,7 @@ app.post('/api/chat', async (req, res) => {
   }
 })
 
-console.log(`[FAL] configured=${!!process.env.FAL_KEY}`)
+console.log(`[FAL] configured=${!!resolvedFalKey}`)
 
 const detected = getLlms()
 console.log(`[LLM] provider=${detected?.provider ?? 'none'} base=${detected?.baseUrl ?? 'n/a'} model=${detected?.model ?? 'n/a'} hasKey=${!!detected?.apiKey}`)

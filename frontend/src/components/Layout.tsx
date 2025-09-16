@@ -11,6 +11,8 @@ import ChatPanel from "./ChatPanel";
 import { useEditor } from "../store/editor";
 import VideoStream from "./VideoStream";
 import { VideoStreamProvider } from "../holo/provider/VideoStreamContext";
+import AgentTimeline from "./AgentTimeline";
+import { useAgentTimeline } from "../store/agentTimeline";
 
 const Global = createGlobalStyle`
   html, body, #root {
@@ -42,6 +44,8 @@ export function Layout() {
     useShortcuts();
     const showChat = useEditor((s) => s.showChatPanel);
     const editorMode = useEditor((s) => s.editorMode);
+    const steps = useAgentTimeline((s) => s.steps);
+    const showTimeline = useAgentTimeline((s) => s.showTimeline);
     return (
         <VideoStreamProvider>
             <Root>
@@ -52,6 +56,7 @@ export function Layout() {
                 <Toolbar />
                 <Inspector />
                 <BooleanPanel />
+                {showTimeline ? <AgentTimeline steps={steps} /> : null}
                 {showChat ? <ChatPanel /> : null}
                 <VideoStream />
             </Root>
